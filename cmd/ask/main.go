@@ -57,7 +57,7 @@ func main() {
 }
 
 func ask(ctx context.Context, helper assistant.Service, question string) error {
-	answer, err := helper.Ask(ctx, question)
+	answer, err := helper.Ask(ctx, question, 0)
 	if err != nil {
 		return err
 	}

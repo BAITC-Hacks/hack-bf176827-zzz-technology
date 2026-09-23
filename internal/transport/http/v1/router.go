@@ -20,6 +20,8 @@ func RegisterV1Graph(router Router, handler graphv1handler.Handler) {
 	router.Get("/top", handler.Top)
 	router.Get("/clusters", handler.Clusters)
 	router.Get("/search", handler.Search)
+	router.Get("/seeds", handler.Seeds)
+	router.Get("/robustness", handler.Robustness)
 	nodes := router.Group("/nodes")
 	{
 		nodes.Get("/:gid", handler.Node)

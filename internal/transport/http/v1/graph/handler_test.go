@@ -35,6 +35,8 @@ func newTestAPI(t *testing.T) *fiber.App {
 	api.Get("/top", h.Top)
 	api.Get("/clusters", h.Clusters)
 	api.Get("/search", h.Search)
+	api.Get("/seeds", h.Seeds)
+	api.Get("/robustness", h.Robustness)
 	return api
 }
 
@@ -46,7 +48,7 @@ func TestAPI(t *testing.T) {
 	}{
 		{"/graph?top=30", 200}, {"/graph?cluster=0", 200}, {"/graph?role=nonsense", 400}, {"/graph?top=-1", 400}, {"/graph?component=abc", 400},
 		{"/nodes/abc", 400}, {"/nodes/99999999999999999999999", 400}, {"/nodes/1", 404}, {"/nodes/1/ego?depth=3", 400},
-		{"/top?n=0", 400}, {"/top", 200}, {"/clusters", 200}, {"/search?q=foo", 400}, {"/search?limit=101", 400},
+		{"/top?n=0", 400}, {"/top", 200}, {"/clusters", 200}, {"/search?q=foo", 400}, {"/search?limit=101", 400}, {"/seeds", 200}, {"/robustness", 200},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			resp, err := api.Test(httptest.NewRequest("GET", tc.path, nil))
@@ -82,10 +84,19 @@ func TestAPI(t *testing.T) {
 			Role string `json:"role"`
 		} `json:"node"`
 		Incoming []struct {
-			Gid string `json:"gid"`
+			Gid  string `json:"gid"`
+			Role string `json:"role"`
 		} `json:"incoming"`
+		Percentiles map[string]float64 `json:"percentiles"`
+		Candidates  []struct {
+			Gid string `json:"gid"`
+			Pct int    `json:"score_pct"`
+		} `json:"next_candidates"`
 	}
 	if err := json.NewDecoder(card.Body).Decode(&parsed); err != nil || parsed.Node.ID != top[0].Gid || parsed.Node.Role == "" || len(parsed.Incoming) == 0 {
 		t.Fatalf("card body: %v %+v", err, parsed)
+	}
+	if parsed.Incoming[0].Role == "" || parsed.Percentiles["in_kzt"] < 90 || len(parsed.Candidates) == 0 || parsed.Candidates[0].Pct == 0 {
+		t.Fatalf("card insights: %+v", parsed)
 	}
 }

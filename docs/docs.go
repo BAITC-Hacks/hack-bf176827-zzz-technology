@@ -319,6 +319,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/robustness": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "graph"
+                ],
+                "summary": "Устойчивость сети при изъятии top-N узлов",
+                "operationId": "robustness",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/graphdto.RobustnessResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/search": {
             "get": {
                 "produces": [
@@ -358,6 +381,29 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/httperr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/seeds": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "graph"
+                ],
+                "summary": "Исходные участники и куда ушли их деньги",
+                "operationId": "seeds",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/graphdto.SeedResponse"
+                            }
                         }
                     }
                 }
@@ -409,6 +455,11 @@ const docTemplate = `{
                 "question"
             ],
             "properties": {
+                "gid": {
+                    "description": "выбранный узел — контекст вопроса",
+                    "type": "string",
+                    "maxLength": 19
+                },
                 "question": {
                     "type": "string",
                     "maxLength": 2000
@@ -468,6 +519,33 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "ok"
+                }
+            }
+        },
+        "graphdto.CandidateResponse": {
+            "type": "object",
+            "properties": {
+                "direction": {
+                    "description": "down — получатель, up — плательщик",
+                    "type": "string"
+                },
+                "flow_share": {
+                    "type": "number"
+                },
+                "gid": {
+                    "type": "string"
+                },
+                "hops": {
+                    "type": "integer"
+                },
+                "priority": {
+                    "type": "number"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "score_pct": {
+                    "type": "integer"
                 }
             }
         },
@@ -621,14 +699,31 @@ const docTemplate = `{
                 }
             }
         },
+        "graphdto.NearestSeedResponse": {
+            "type": "object",
+            "properties": {
+                "gid": {
+                    "type": "string"
+                },
+                "steps": {
+                    "type": "integer"
+                }
+            }
+        },
         "graphdto.NeighborResponse": {
             "type": "object",
             "properties": {
                 "gid": {
                     "type": "string"
                 },
+                "is_seed": {
+                    "type": "boolean"
+                },
                 "n_tx": {
                     "type": "integer"
+                },
+                "role": {
+                    "type": "string"
                 },
                 "sum_kzt": {
                     "type": "number"
@@ -644,6 +739,15 @@ const docTemplate = `{
                         "$ref": "#/definitions/graphdto.NeighborResponse"
                     }
                 },
+                "nearest_seed": {
+                    "$ref": "#/definitions/graphdto.NearestSeedResponse"
+                },
+                "next_candidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/graphdto.CandidateResponse"
+                    }
+                },
                 "node": {
                     "$ref": "#/definitions/graphdto.NodeDetailResponse"
                 },
@@ -651,6 +755,14 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/graphdto.NeighborResponse"
+                    }
+                },
+                "percentiles": {
+                    "description": "метрика → доля узлов сети с меньшим значением, 0–100",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
                     }
                 }
             }
@@ -749,6 +861,71 @@ const docTemplate = `{
                 },
                 "truncated": {
                     "type": "boolean"
+                }
+            }
+        },
+        "graphdto.RobustnessResponse": {
+            "type": "object",
+            "properties": {
+                "components_after": {
+                    "type": "integer"
+                },
+                "components_before": {
+                    "type": "integer"
+                },
+                "largest_component_after": {
+                    "type": "integer"
+                },
+                "largest_component_before": {
+                    "type": "integer"
+                },
+                "lost_turnover_share": {
+                    "type": "number"
+                },
+                "nodes_lost_all_incoming": {
+                    "type": "integer"
+                },
+                "removed": {
+                    "type": "integer"
+                },
+                "removed_gids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "seeds_disconnected": {
+                    "type": "integer"
+                }
+            }
+        },
+        "graphdto.SeedResponse": {
+            "type": "object",
+            "properties": {
+                "cluster": {
+                    "type": "integer"
+                },
+                "gid": {
+                    "type": "string"
+                },
+                "next": {
+                    "description": "крупнейшие получатели",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/graphdto.NeighborResponse"
+                    }
+                },
+                "out_deg": {
+                    "type": "integer"
+                },
+                "out_kzt": {
+                    "type": "number"
+                },
+                "priority": {
+                    "type": "number"
+                },
+                "role": {
+                    "type": "string"
                 }
             }
         },

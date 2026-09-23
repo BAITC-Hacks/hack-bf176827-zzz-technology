@@ -2,6 +2,10 @@ basePath: /v1
 definitions:
   assistantdto.AskRequest:
     properties:
+      gid:
+        description: выбранный узел — контекст вопроса
+        maxLength: 19
+        type: string
       question:
         maxLength: 2000
         type: string
@@ -44,6 +48,24 @@ definitions:
       status:
         example: ok
         type: string
+    type: object
+  graphdto.CandidateResponse:
+    properties:
+      direction:
+        description: down — получатель, up — плательщик
+        type: string
+      flow_share:
+        type: number
+      gid:
+        type: string
+      hops:
+        type: integer
+      priority:
+        type: number
+      role:
+        type: string
+      score_pct:
+        type: integer
     type: object
   graphdto.ClusterResponse:
     properties:
@@ -144,12 +166,23 @@ definitions:
       verified_sink:
         type: boolean
     type: object
+  graphdto.NearestSeedResponse:
+    properties:
+      gid:
+        type: string
+      steps:
+        type: integer
+    type: object
   graphdto.NeighborResponse:
     properties:
       gid:
         type: string
+      is_seed:
+        type: boolean
       n_tx:
         type: integer
+      role:
+        type: string
       sum_kzt:
         type: number
     type: object
@@ -159,12 +192,24 @@ definitions:
         items:
           $ref: '#/definitions/graphdto.NeighborResponse'
         type: array
+      nearest_seed:
+        $ref: '#/definitions/graphdto.NearestSeedResponse'
+      next_candidates:
+        items:
+          $ref: '#/definitions/graphdto.CandidateResponse'
+        type: array
       node:
         $ref: '#/definitions/graphdto.NodeDetailResponse'
       outgoing:
         items:
           $ref: '#/definitions/graphdto.NeighborResponse'
         type: array
+      percentiles:
+        additionalProperties:
+          format: float64
+          type: number
+        description: метрика → доля узлов сети с меньшим значением, 0–100
+        type: object
     type: object
   graphdto.NodeDetailResponse:
     properties:
@@ -229,6 +274,49 @@ definitions:
         type: number
       truncated:
         type: boolean
+    type: object
+  graphdto.RobustnessResponse:
+    properties:
+      components_after:
+        type: integer
+      components_before:
+        type: integer
+      largest_component_after:
+        type: integer
+      largest_component_before:
+        type: integer
+      lost_turnover_share:
+        type: number
+      nodes_lost_all_incoming:
+        type: integer
+      removed:
+        type: integer
+      removed_gids:
+        items:
+          type: string
+        type: array
+      seeds_disconnected:
+        type: integer
+    type: object
+  graphdto.SeedResponse:
+    properties:
+      cluster:
+        type: integer
+      gid:
+        type: string
+      next:
+        description: крупнейшие получатели
+        items:
+          $ref: '#/definitions/graphdto.NeighborResponse'
+        type: array
+      out_deg:
+        type: integer
+      out_kzt:
+        type: number
+      priority:
+        type: number
+      role:
+        type: string
     type: object
   graphdto.SubgraphResponse:
     properties:
@@ -485,6 +573,21 @@ paths:
       summary: Окружение узла в один или два шага
       tags:
       - graph
+  /robustness:
+    get:
+      operationId: robustness
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/graphdto.RobustnessResponse'
+            type: array
+      summary: Устойчивость сети при изъятии top-N узлов
+      tags:
+      - graph
   /search:
     get:
       operationId: search
@@ -512,6 +615,21 @@ paths:
           schema:
             $ref: '#/definitions/httperr.Response'
       summary: Поиск по началу GID
+      tags:
+      - graph
+  /seeds:
+    get:
+      operationId: seeds
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/graphdto.SeedResponse'
+            type: array
+      summary: Исходные участники и куда ушли их деньги
       tags:
       - graph
   /top:

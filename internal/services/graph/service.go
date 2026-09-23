@@ -24,12 +24,16 @@ type Service interface {
 	Top(n int) []models.TopNode
 	Clusters() []models.ClusterResult
 	Search(prefix string, limit int) []models.NodeResult
+	Seeds() []SeedInfo
+	Robustness() []models.RobustnessStep
+	NodeInfo(gid int64) (*models.NodeResult, bool)
 }
 
 type service struct {
 	logger *zap.Logger
 	result *models.AnalysisResult
 	index  *graph.Index
+	sorted map[string][]float64 // значения метрик по всем узлам, для перцентилей
 }
 
 type ServiceParams struct {
@@ -42,6 +46,7 @@ func NewService(params ServiceParams) Service {
 		logger: params.Logger.Named("graph_service"),
 		result: params.Result,
 		index:  graph.NewIndex(params.Result.Edges),
+		sorted: buildPercentileIndex(params.Result.Nodes),
 	}
 }
 
@@ -71,7 +76,10 @@ func (s *service) Node(gid int64) (*NodeCard, error) {
 	if !ok {
 		return nil, ErrNodeNotFound
 	}
-	return &NodeCard{Node: *node, Incoming: s.index.Incoming[gid], Outgoing: s.index.Outgoing[gid]}, nil
+	return &NodeCard{
+		Node: *node, Incoming: s.index.Incoming[gid], Outgoing: s.index.Outgoing[gid],
+		Percentiles: s.percentiles(node.Features), NearestSeed: s.nearestSeed(gid), NextCandidates: s.nextCandidates(gid, nil),
+	}, nil
 }
 
 // Ego — окружение узла в обе стороны на depth шагов.
@@ -96,6 +104,8 @@ func (s *service) Top(n int) []models.TopNode {
 }
 
 func (s *service) Clusters() []models.ClusterResult { return s.result.Clusters }
+
+func (s *service) NodeInfo(gid int64) (*models.NodeResult, bool) { return s.result.Node(gid) }
 
 // Search — узлы, чей GID начинается с prefix (пустой prefix — первые limit узлов).
 func (s *service) Search(prefix string, limit int) []models.NodeResult {

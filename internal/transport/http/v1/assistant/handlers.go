@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"errors"
+	"strconv"
 
 	assistantdto "hackaton/internal/data/dto/assistant"
 	graphdto "hackaton/internal/data/dto/graph"
@@ -44,7 +45,15 @@ func (h *handler) Ask(ctx *fiber.Ctx) error {
 	if err := mixins.ParseBody(ctx, h.validate, &req); err != nil {
 		return err
 	}
-	answer, err := h.assistant.Ask(ctx.UserContext(), req.Question)
+	var contextGID int64
+	if req.Gid != "" {
+		parsed, err := strconv.ParseInt(req.Gid, 10, 64)
+		if err != nil {
+			return httperr.BadRequest("invalid_gid", "Некорректный gid").WithField("gid")
+		}
+		contextGID = parsed
+	}
+	answer, err := h.assistant.Ask(ctx.UserContext(), req.Question, contextGID)
 	if err != nil {
 		switch {
 		case errors.Is(err, assistantservice.ErrLLMDisabled):

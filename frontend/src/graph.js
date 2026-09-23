@@ -1,7 +1,7 @@
 export const roles = {
-  consolidator: ['Консолидатор', '#8054d9'], transit: ['Транзит', '#25a9b6'],
-  distributor: ['Распределитель', '#ed9650'], terminal: ['Конечный получатель', '#db638c'],
-  coordinator: ['Координатор', '#4778e5'], peripheral: ['Периферия', '#9aa8bc'],
+  consolidator: ['Консолидатор', '#dd5b00'], transit: ['Транзит', '#2a9d99'],
+  distributor: ['Распределитель', '#62aef0'], terminal: ['Конечный получатель', '#1aae39'],
+  coordinator: ['Координатор', '#ff64c8'], peripheral: ['Периферия', '#a39e98'],
 };
 export const money = value => new Intl.NumberFormat('ru-RU', {maximumFractionDigits: 0}).format(value || 0) + ' ₸';
 export const roleName = role => roles[role]?.[0] || role;

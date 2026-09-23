@@ -29,7 +29,35 @@ type Subgraph struct {
 }
 
 type NodeCard struct {
-	Node     models.NodeResult
-	Incoming []models.Edge // по убыванию суммы
-	Outgoing []models.Edge
+	Node           models.NodeResult
+	Incoming       []models.Edge // по убыванию суммы
+	Outgoing       []models.Edge
+	Percentiles    map[string]float64 // метрика → доля узлов с меньшим значением, 0–100
+	NearestSeed    *NearestSeed
+	NextCandidates []Candidate
 }
+
+type NearestSeed struct {
+	GID   int64
+	Steps int
+}
+
+// Candidate — следующий вероятный ключевой узел (эвристика: доля потока × приоритет).
+type Candidate struct {
+	GID       int64
+	Role      models.Role
+	Priority  float64
+	Hops      int
+	Direction string // down | up
+	FlowShare float64
+	Score     float64
+	ScorePct  int
+}
+
+// SeedInfo — исходный участник и его крупнейшие получатели.
+type SeedInfo struct {
+	Node models.NodeResult
+	Next []models.Edge
+}
+
+const seedNextLimit = 3

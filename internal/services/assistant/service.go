@@ -18,8 +18,8 @@ const maxToolSteps = 8
 type Service interface {
 	Enabled() bool
 	Model() string
-	// Ask — вопрос на естественном языке; без ключа возвращает ErrLLMDisabled.
-	Ask(ctx context.Context, question string) (Answer, error)
+	// Ask — вопрос на естественном языке; contextGID (0 — нет) добавляет выбранный узел в контекст. Без ключа — ErrLLMDisabled.
+	Ask(ctx context.Context, question string, contextGID int64) (Answer, error)
 	// Card — справка по узлу; без ключа или при сбое LLM возвращает шаблон и ByLLM=false.
 	Card(ctx context.Context, gid int64) (Card, error)
 }

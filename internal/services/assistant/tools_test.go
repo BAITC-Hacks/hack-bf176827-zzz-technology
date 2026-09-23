@@ -62,7 +62,7 @@ func TestToolsWithoutLLM(t *testing.T) {
 	if err != nil || card.ByLLM || !strings.Contains(card.Text, "Роль и почему") {
 		t.Fatalf("card: %v %+v", err, card)
 	}
-	if _, err := svc.Ask(t.Context(), "кто главный?"); !errors.Is(err, ErrLLMDisabled) {
+	if _, err := svc.Ask(t.Context(), "кто главный?", 0); !errors.Is(err, ErrLLMDisabled) {
 		t.Fatalf("ожидался ErrLLMDisabled, получено %v", err)
 	}
 }

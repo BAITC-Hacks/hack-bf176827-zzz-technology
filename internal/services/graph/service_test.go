@@ -25,7 +25,7 @@ func testService() *service {
 		Top: []models.TopNode{{GID: 100000003684369100}},
 	}
 	result.Index()
-	return &service{logger: zap.NewNop(), result: result, index: graph.NewIndex(result.Edges)}
+	return &service{logger: zap.NewNop(), result: result, index: graph.NewIndex(result.Edges), sorted: buildPercentileIndex(result.Nodes)}
 }
 
 func TestGraphFilters(t *testing.T) {

@@ -16,6 +16,8 @@ type Handler interface {
 	Top(ctx *fiber.Ctx) error
 	Clusters(ctx *fiber.Ctx) error
 	Search(ctx *fiber.Ctx) error
+	Seeds(ctx *fiber.Ctx) error
+	Robustness(ctx *fiber.Ctx) error
 }
 
 type handler struct {

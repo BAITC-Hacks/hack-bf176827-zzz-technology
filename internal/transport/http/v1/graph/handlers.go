@@ -76,7 +76,7 @@ func (h *handler) Node(ctx *fiber.Ctx) error {
 	if err != nil {
 		return h.mapError(err)
 	}
-	return ctx.JSON(graphdto.NewNodeCardResponse(card.Node, card.Incoming, card.Outgoing))
+	return ctx.JSON(h.nodeCardResponse(card))
 }
 
 // Ego
@@ -158,6 +158,69 @@ func (h *handler) Search(ctx *fiber.Ctx) error {
 		return err
 	}
 	return ctx.JSON(graphdto.NewNodeDetailResponses(h.graph.Search(prefix, limit)))
+}
+
+// Seeds
+//
+//	@Summary	Исходные участники и куда ушли их деньги
+//	@Tags		graph
+//	@ID			seeds
+//	@Produce	json
+//	@Success	200	{array}	graphdto.SeedResponse
+//	@Router		/seeds [get]
+func (h *handler) Seeds(ctx *fiber.Ctx) error {
+	seeds := h.graph.Seeds()
+	resp := make([]graphdto.SeedResponse, 0, len(seeds))
+	for _, seed := range seeds {
+		f := seed.Node.Features
+		resp = append(resp, graphdto.SeedResponse{Gid: graphdto.GID(seed.Node.GID), Role: string(seed.Node.Role), Cluster: seed.Node.ClusterID,
+			OutKZT: f.OutKZT, OutDeg: f.OutDegree, Priority: seed.Node.PriorityScore,
+			Next: graphdto.NewNeighborResponses(seed.Next, func(e models.Edge) int64 { return e.Payee }, h.roleOf)})
+	}
+	return ctx.JSON(resp)
+}
+
+// Robustness
+//
+//	@Summary	Устойчивость сети при изъятии top-N узлов
+//	@Tags		graph
+//	@ID			robustness
+//	@Produce	json
+//	@Success	200	{array}	graphdto.RobustnessResponse
+//	@Router		/robustness [get]
+func (h *handler) Robustness(ctx *fiber.Ctx) error {
+	steps := h.graph.Robustness()
+	resp := make([]graphdto.RobustnessResponse, 0, len(steps))
+	for _, step := range steps {
+		resp = append(resp, graphdto.NewRobustnessResponse(step))
+	}
+	return ctx.JSON(resp)
+}
+
+func (h *handler) roleOf(gid int64) (string, bool) {
+	node, ok := h.graph.NodeInfo(gid)
+	if !ok {
+		return "", false
+	}
+	return string(node.Role), node.Features.IsSeed
+}
+
+func (h *handler) nodeCardResponse(card *graphservice.NodeCard) graphdto.NodeCardResponse {
+	resp := graphdto.NodeCardResponse{
+		Node:           graphdto.NewNodeDetailResponse(card.Node),
+		Incoming:       graphdto.NewNeighborResponses(card.Incoming, func(e models.Edge) int64 { return e.Payer }, h.roleOf),
+		Outgoing:       graphdto.NewNeighborResponses(card.Outgoing, func(e models.Edge) int64 { return e.Payee }, h.roleOf),
+		Percentiles:    card.Percentiles,
+		NextCandidates: make([]graphdto.CandidateResponse, 0, len(card.NextCandidates)),
+	}
+	if card.NearestSeed != nil {
+		resp.NearestSeed = &graphdto.NearestSeedResponse{Gid: graphdto.GID(card.NearestSeed.GID), Steps: card.NearestSeed.Steps}
+	}
+	for _, c := range card.NextCandidates {
+		resp.NextCandidates = append(resp.NextCandidates, graphdto.CandidateResponse{Gid: graphdto.GID(c.GID), Role: string(c.Role), Priority: c.Priority,
+			Hops: c.Hops, Direction: c.Direction, FlowShare: c.FlowShare, ScorePct: c.ScorePct})
+	}
+	return resp
 }
 
 func (h *handler) mapError(err error) error {
