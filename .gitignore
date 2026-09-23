@@ -16,3 +16,7 @@
 
 go.work
 go.work.sum
+
+# React / Vite
+/frontend/node_modules/
+/frontend/dist/

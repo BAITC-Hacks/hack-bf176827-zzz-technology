@@ -1,0 +1,21 @@
+{
+  "name": "money-graph-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test src/graph.test.js"
+  },
+  "dependencies": {
+    "cytoscape": "3.30.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  },
+  "engines": {"node": ">=22.12.0"}
+}
