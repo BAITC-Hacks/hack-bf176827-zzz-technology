@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewRequestLogger — access-лог через zap; 5xx → error, 4xx → warn.
+// NewRequestLogger — access-лог через zap: метод, путь, статус, длительность; 5xx → error, 4xx → warn, остальное → info.
 func NewRequestLogger(log *zap.Logger) fiber.Handler {
 	log = log.Named("http")
 	return func(c *fiber.Ctx) error {

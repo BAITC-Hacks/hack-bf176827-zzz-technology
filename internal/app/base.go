@@ -1,4 +1,5 @@
-// Package app — сборка приложения на Uber FX: каждый Module* подключается в cmd/web/main.go.
+// Package app — сборка приложения на Uber FX: конфиг, логгер, валидатор, сервисы, HTTP.
+// Модули подключаются в cmd/web (сервер) и cmd/pipeline, cmd/ask (CLI без HTTP).
 package app
 
 import (
