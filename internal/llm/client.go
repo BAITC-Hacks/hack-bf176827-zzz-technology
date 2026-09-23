@@ -37,7 +37,12 @@ func New(cfg Config) *Client {
 }
 
 func (c *Client) Enabled() bool { return c != nil && c.cfg.APIKey != "" }
-func (c *Client) Model() string { return c.cfg.Model }
+func (c *Client) Model() string {
+	if c == nil {
+		return ""
+	}
+	return c.cfg.Model
+}
 
 type Tool struct {
 	Name        string         `json:"name"`
