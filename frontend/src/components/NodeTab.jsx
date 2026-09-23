@@ -67,6 +67,7 @@ export default function NodeTab({card, route, llm, hidePeripheral, onSelect, onE
         {n.is_seed && <span className="apx-badge apx-badge--outline">seed</span>}
         {n.truncated && <span className="apx-badge apx-badge--outline">обрезан обходом</span>}
         {n.features?.verified_sink && <span className="apx-badge apx-badge--outline">подтверждённый сток</span>}
+        {n.features?.structuring && <span className="apx-badge apx-badge--warn">признаки дробления</span>}
       </div>
       <p className="evidence apx-sm">{n.evidence}</p>
       <p className="seed-line apx-sm"><i className="diamond diamond--10" />

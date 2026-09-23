@@ -16,6 +16,10 @@ const (
 	pageRankDamping = 0.85
 	seedUpstreamMax = 4 // колен от seed, в пределах которых считаем SeedUpstream
 	fastForwardDays = 2 // окно «пришло и ушло» для FastForwardShare
+
+	smallTxLimit          = 15_000.0 // «мелкий» перевод: сразу над порогом выгрузки 5 000
+	structuringMinTx      = 5        // дробление: входящих переводов ≥
+	structuringSmallShare = 0.6      // дробление: доля мелких ≥
 )
 
 // computeFeatures — метрики, не зависящие от кластеров и паттернов.
@@ -134,7 +138,11 @@ func fillTemporal(txGraph *graph.Graph, gid int64, f *models.Features) {
 	activeDays := map[string]bool{}
 	payersByDay := map[string]map[int64]bool{}
 	var incomingDays []int64
+	small := 0
 	for _, tx := range txGraph.TxIncoming[gid] {
+		if tx.SumKZT < smallTxLimit {
+			small++
+		}
 		day := tx.Date.Format("2006-01-02")
 		activeDays[day] = true
 		if payersByDay[day] == nil {
@@ -163,6 +171,10 @@ func fillTemporal(txGraph *graph.Graph, gid int64, f *models.Features) {
 	f.ActiveDays = len(activeDays)
 	if totalOut > 0 && len(incomingDays) > 0 {
 		f.FastForwardShare = fastOut / totalOut
+	}
+	if n := len(incomingDays); n > 0 {
+		f.SmallTxShare = float64(small) / float64(n)
+		f.Structuring = n >= structuringMinTx && f.SmallTxShare >= structuringSmallShare
 	}
 }
 

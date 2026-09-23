@@ -35,6 +35,7 @@ var percentileKeys = map[string]func(models.Features) float64{
 	"max_same_day_payers": func(f models.Features) float64 { return float64(f.MaxSameDayPayers) },
 	"fast_forward_share":  func(f models.Features) float64 { return f.FastForwardShare },
 	"repeat_routes":       func(f models.Features) float64 { return float64(f.RepeatRoutes) },
+	"small_tx_share":      func(f models.Features) float64 { return f.SmallTxShare },
 }
 
 // buildPercentileIndex — отсортированные значения каждой метрики по всем узлам.

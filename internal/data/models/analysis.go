@@ -36,6 +36,9 @@ type Features struct {
 	Reciprocal       bool
 	InCycle          bool
 	RepeatRoutes     int // устойчивых маршрутов A→B→C через узел
+
+	SmallTxShare float64 // доля входящих переводов до 15 000 KZT (сразу над порогом выгрузки)
+	Structuring  bool    // признаки дробления: ≥ 5 входящих и ≥ 60 % мелких
 }
 
 type NodeResult struct {

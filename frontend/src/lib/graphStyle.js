@@ -68,6 +68,11 @@ export function graphStyle(t) {
       'line-color': t('--apx-bg'), 'line-style': 'dashed', 'line-dash-pattern': [3, 9], width: 'mapData(log_sum, 0, 4, 1, 3)',
       'target-arrow-shape': 'none', opacity: 0.9, 'z-index': 30, events: 'no',
     }},
+    // акцент направления с полосы над графом
+    {selector: 'edge.emph', style: {opacity: 1, width: 'mapData(log_sum, 0, 4, 2.2, 6.5)', 'z-index': 40}},
+    {selector: 'node.emph', style: {opacity: 1, 'z-index': 40}},
+    {selector: 'edge.faded', style: {opacity: 0.12, label: ''}},
+    {selector: 'node.faded', style: {opacity: 0.2}},
     {selector: 'edge.route', style: {'underlay-color': t('--apx-surface-3'), 'underlay-opacity': 1, 'underlay-padding': 6}},
     {selector: 'edge.hover', style: {label: 'data(sum_short)', 'font-size': 11, 'text-outline-color': t('--apx-bg'), 'text-outline-width': 3}},
   ];

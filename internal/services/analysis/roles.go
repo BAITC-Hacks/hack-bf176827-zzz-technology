@@ -167,6 +167,9 @@ func buildEvidence(node *models.NodeResult) string {
 	if f.RepeatRoutes > 0 && (node.Role == models.RoleTransit || node.Role == models.RoleCoordinator) {
 		text += fmt.Sprintf("; устойчивых маршрутов через узел: %d", f.RepeatRoutes)
 	}
+	if f.Structuring {
+		text += fmt.Sprintf("; признаки дробления: %.0f%% из %d входящих до 15 тыс", f.SmallTxShare*100, f.InTxCount)
+	}
 	return text
 }
 

@@ -18,6 +18,7 @@ export default function App() {
   const [sourceKind, setSourceKind] = useState('loading'), [error, setError] = useState(''), [searchError, setSearchError] = useState(''), [busy, setBusy] = useState(true);
   const [selected, setSelected] = useState(''), [highlighted, setHighlighted] = useState([]), [llm, setLLM] = useState(true);
   const [tab, setTab] = useState('node'), [ready, setReady] = useState(false), [hidePeripheral, setHidePeripheral] = useState(false);
+  const [emphasis, setEmphasis] = useState(null); // 'in' | 'out' — подсветка направления с полосы выбранного узла
   const {route, push: pushRoute, clear: clearRoute} = useRoute();
   const fallback = useRef(null), version = useRef(0), topRef = useRef([]), activeFilters = useRef(filters), restored = useRef(false);
   const pendingSelection = useRef(null); // выбор, который надо сохранить при смене фильтра на кластер узла
@@ -130,9 +131,9 @@ export default function App() {
       hidePeripheral={hidePeripheral} />
     <main className="body">
       <div className="canvas-col">
-        <SelectedStrip card={card} status={status} />
+        <SelectedStrip card={card} status={status} onSelect={select} onEmphasis={setEmphasis} />
         <div className="canvas-wrap">
-          <GraphCanvas view={view} selected={selected} highlighted={highlighted} route={route} candidates={card?.next_candidates || []} hidePeripheral={hidePeripheral} onSelect={select} onBusy={setBusy} />
+          <GraphCanvas view={view} selected={selected} highlighted={highlighted} route={route} candidates={card?.next_candidates || []} hidePeripheral={hidePeripheral} emphasis={emphasis} onSelect={select} onBusy={setBusy} />
           <label className="canvas-toggle" title="Периферия: узлы без признаков роли, 84% сети. Seed, выбранный узел и маршрут остаются видны.">
             <input type="checkbox" checked={hidePeripheral} onChange={e => { setHidePeripheral(e.target.checked); notify(e.target.checked ? 'Периферия исключена' : 'Периферия показана'); }} disabled={!ready} /><span className="switch" aria-hidden="true" /><span>Исключить периферию</span>
           </label>
@@ -146,6 +147,7 @@ export default function App() {
         onSelect={select} onEgo={id => select(id, 2)} onCluster={id => { setFilters({role: '', cluster: String(id), topOnly: false}); notify(`Выбран кластер ${id}`); }} onDisableLLM={() => setLLM(false)} onHighlight={highlight} />
     </main>
     {toast && <div className="toast-host"><div className="apx-toast" role="status"><span className="apx-toast__text">{toast.text}</span>
-      {toast.action && <button className="toast__action" onClick={() => { toast.action.run(); setToast(null); }}>{toast.action.label}</button>}</div></div>}
+      {toast.action && <button className="toast__action" onClick={() => { toast.action.run(); setToast(null); }}>{toast.action.label}</button>}
+      <button className="apx-toast__close" aria-label="Закрыть уведомление" onClick={() => setToast(null)}>×</button></div></div>}
   </div>;
 }

@@ -46,6 +46,8 @@ button { font-family: inherit; }
 .strip { display: flex; flex-wrap: wrap; align-items: stretch; min-height: 68px; padding-left: 12px; background: var(--apx-surface); border-bottom: 1px solid var(--apx-line); }
 .strip__block { display: grid; gap: 2px; align-content: center; padding: 10px 20px; border-left: 1px solid var(--apx-line); white-space: nowrap; flex: none; }
 .strip__block--first { border-left: 0; }
+.strip__block--hover { cursor: default; }
+.strip__block--hover:hover { background: var(--apx-surface-2); }
 .strip__block--retain { gap: 4px; min-width: 140px; }
 .strip__role { display: flex; align-items: center; gap: 8px; font: 600 15px/1.3 var(--apx-font); }
 .strip__gid { font-size: 13px; color: var(--apx-ink-2); letter-spacing: 0.02em; }
@@ -191,6 +193,7 @@ button { font-family: inherit; }
 
 /* тосты и чекбокс */
 .toast-host { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 20; }
+.toast-host .apx-toast__close { font-size: 18px; line-height: 1; padding: 0 2px; }
 .toast__action { background: none; border: 0; padding: 0; color: var(--apx-ink-inverse); font: 600 14px/1.45 var(--apx-font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
 .toast-host .apx-toast { display: inline-flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--apx-ink); color: var(--apx-ink-inverse); border-radius: var(--apx-r-2); font-size: 14px; }
 .check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--apx-ink); cursor: pointer; }

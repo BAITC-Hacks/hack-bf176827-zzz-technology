@@ -103,6 +103,8 @@ type FeaturesResponse struct {
 	Reciprocal       bool    `json:"reciprocal"`
 	InCycle          bool    `json:"in_cycle"`
 	RepeatRoutes     int     `json:"repeat_routes"`
+	SmallTxShare     float64 `json:"small_tx_share"`
+	Structuring      bool    `json:"structuring"`
 }
 
 func GID(gid int64) string { return strconv.FormatInt(gid, 10) }
@@ -178,5 +180,6 @@ func NewFeaturesResponse(f models.Features) FeaturesResponse {
 		PageRank: f.PageRank, Hub: f.Hub, Authority: f.Authority, Betweenness: f.Betweenness,
 		NSeedPayers: f.SeedPayers, NSeedUpstream: f.SeedUpstream, NClustersIn: f.ClustersIn, ComponentID: f.ComponentID, ComponentSize: f.ComponentSize,
 		Truncated: f.Truncated, VerifiedSink: f.VerifiedSink, ActiveDays: f.ActiveDays, MaxSameDayPayers: f.MaxSameDayPayers,
-		FastForwardShare: f.FastForwardShare, Reciprocal: f.Reciprocal, InCycle: f.InCycle, RepeatRoutes: f.RepeatRoutes}
+		FastForwardShare: f.FastForwardShare, Reciprocal: f.Reciprocal, InCycle: f.InCycle, RepeatRoutes: f.RepeatRoutes,
+		SmallTxShare: f.SmallTxShare, Structuring: f.Structuring}
 }

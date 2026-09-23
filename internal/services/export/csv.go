@@ -16,7 +16,7 @@ var (
 	nodesHeader = []string{"gid", "role", "role_score", "cluster_id", "priority_score", "evidence",
 		"in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx", "pass_through", "pagerank", "betweenness",
 		"n_seed_payers", "n_seed_upstream", "component_id", "depth", "is_seed", "truncated", "verified_sink",
-		"in_cycle", "repeat_routes", "fast_forward_share", "active_days"}
+		"in_cycle", "repeat_routes", "fast_forward_share", "active_days", "small_tx_share", "structuring"}
 	clustersHeader = []string{"cluster_id", "n_nodes", "n_seed", "sum_kzt_internal", "top_gids", "hypothesis",
 		"component_id", "sum_kzt_in", "sum_kzt_out", "n_cycles",
 		"n_consolidator", "n_transit", "n_distributor", "n_terminal", "n_coordinator", "n_peripheral"}
@@ -49,6 +49,7 @@ func nodeRow(node models.NodeResult) []string {
 		strconv.Itoa(f.SeedPayers), strconv.Itoa(f.SeedUpstream), strconv.Itoa(f.ComponentID), strconv.Itoa(f.Depth),
 		strconv.FormatBool(f.IsSeed), strconv.FormatBool(f.Truncated), strconv.FormatBool(f.VerifiedSink),
 		strconv.FormatBool(f.InCycle), strconv.Itoa(f.RepeatRoutes), formatScore(f.FastForwardShare), strconv.Itoa(f.ActiveDays),
+		formatScore(f.SmallTxShare), strconv.FormatBool(f.Structuring),
 	}
 }
 

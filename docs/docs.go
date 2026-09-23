@@ -699,6 +699,12 @@ const docTemplate = `{
                 "repeat_routes": {
                     "type": "integer"
                 },
+                "small_tx_share": {
+                    "type": "number"
+                },
+                "structuring": {
+                    "type": "boolean"
+                },
                 "truncated": {
                     "type": "boolean"
                 },

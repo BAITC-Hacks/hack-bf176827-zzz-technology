@@ -23,7 +23,7 @@ function applyPeripheralVisibility(cy, hide, keep) {
   cy.nodes('[role = "peripheral"][!is_seed]').filter(n => !keep.has(n.id())).addClass('hidden');
 }
 
-export default function GraphCanvas({view, selected, highlighted, route, candidates, hidePeripheral, onSelect, onBusy}) {
+export default function GraphCanvas({view, selected, highlighted, route, candidates, hidePeripheral, emphasis, onSelect, onBusy}) {
   const container = useRef(null), cyRef = useRef(null), tokens = useRef(null), selectRef = useRef(onSelect), busyRef = useRef(onBusy);
   selectRef.current = onSelect; busyRef.current = onBusy;
 
@@ -113,6 +113,19 @@ export default function GraphCanvas({view, selected, highlighted, route, candida
     }); });
     return () => cancelAnimationFrame(frame);
   }, [view, selected, highlighted, route, candidates, hidePeripheral]);
+
+  // акцент направления с полосы выбранного узла: одно направление поверх, другое гасится
+  useEffect(() => {
+    const cy = cyRef.current; if (!cy) return;
+    cy.elements().removeClass('emph faded');
+    if (!emphasis || !selected) return;
+    const node = cy.getElementById(selected); if (!node.length) return;
+    const keep = emphasis === 'in' ? node.incomers('edge') : node.outgoers('edge');
+    const fade = emphasis === 'in' ? node.outgoers('edge') : node.incomers('edge');
+    keep.addClass('emph'); keep.connectedNodes().not(node).addClass('emph');
+    fade.addClass('faded'); fade.connectedNodes().not(node).not(keep.connectedNodes()).addClass('faded');
+    cy.edges('.flow').filter(e => fade.some(f => 'flow:' + f.id() === e.id())).addClass('faded');
+  }, [emphasis, selected, view]);
 
   return <div ref={container} id="graph" role="img" aria-label="Сеть направленных переводов" data-nodes={view?.graph.nodes.length || 0} data-edges={view?.graph.edges.length || 0} />;
 }

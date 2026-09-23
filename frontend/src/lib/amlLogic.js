@@ -85,6 +85,9 @@ export function metricRows(card) {
     {key: 'truncated', label: 'Обрыв обхода', value: n.truncated ? 'Да' : 'Нет', level: n.truncated ? 'mid' : 'ok',
       note: n.truncated ? 'данные неполные, связи за границей обхода не видны' : 'связи узла собраны полностью'},
     {key: 'verified_sink', label: 'Подтверждённый сток', value: f.verified_sink ? 'Да' : 'Нет', level: f.verified_sink ? 'high' : 'neutral', note: f.verified_sink ? 'деньги пришли и остались' : ''},
+    {key: 'structuring', label: 'Дробление сумм', value: f.structuring ? 'Да' : 'Нет',
+      level: f.structuring ? 'high' : (f.small_tx_share ?? 0) >= 0.6 ? 'mid' : 'neutral',
+      note: (f.in_tx ?? 0) > 0 ? `${Math.round((f.small_tx_share ?? 0) * 100)}% входящих переводов до 15 тыс KZT, сразу над порогом выгрузки` : ''},
   ];
   return rows.sort((a, b) => LEVELS[a.level].rank - LEVELS[b.level].rank);
 }

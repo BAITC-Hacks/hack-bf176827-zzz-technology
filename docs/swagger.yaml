@@ -167,6 +167,10 @@ definitions:
         type: boolean
       repeat_routes:
         type: integer
+      small_tx_share:
+        type: number
+      structuring:
+        type: boolean
       truncated:
         type: boolean
       verified_sink:
