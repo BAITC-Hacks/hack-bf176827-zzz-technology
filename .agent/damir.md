@@ -20,10 +20,10 @@
 ## Правила
 
 - Ветка `feat/web`. Коммитить часто. Мержу в `main` первым, Артём ребейзится на меня.
-- Мои файлы: `internal/services/graph/**`, `internal/data/dto/**`, `internal/transport/http/v1/graph/**`,
-  `internal/app/*.go`, `cmd/web/**`, `cmd/check/**`, `web/**`, `Makefile`, `Dockerfile`,
+- Мои файлы: `internal/services/graph/**`, `internal/data/dto/graph/**` (расширять, не ломать), `internal/transport/http/v1/graph/**`,
+  `cmd/check/**`, `web/**`, `Makefile`, `Dockerfile`, регистрация в `internal/app/{internal,handlers}.go` и `v1/router.go` (только добавлять строки),
   `docker-compose.yaml`, `docs/` (swagger), README-разделы «Запуск», «Структура», «Что на выходе», «API», «Интерфейс».
-- **Не трогать**: `internal/analysis/**`, `internal/data/parquet/**`, `internal/graph/**`, `cmd/pipeline/**`.
+- **Не трогать**: `internal/services/{analysis,export,hypotheses,pipeline,assistant}/**`, `internal/data/models/**`, `internal/data/graph/**`, `internal/repo/**`, `pkg/llm/**`, `cmd/{pipeline,ask}/**`.
   Если там чего-то не хватает — написать Артёму, не править самому.
 - Код по образцу каркаса: логика в `internal/services`, хендлеры только парсят и мапят в DTO, ошибки через
   `pkg/httperr`, swagger-аннотации у каждого хендлера, `@Router` без `/v1`, после правок `make swag`.
@@ -31,44 +31,17 @@
 - В JSON для фронта **gid всегда строкой**: значения ≈ 1e17 больше 2^53, JavaScript теряет точность.
 - Интерфейс без внешних CDN: библиотеки вендорить в `web/vendor/`.
 
-## Контракт с аналитикой (фиксирует Артём в коммите `foundation`)
+## Контракт с аналитикой (после рефакторинга — см. `.agent/artem_ready.md` и `CLAUDE.md`)
 
-```go
-// internal/analysis/result.go
-type NodeResult struct {
-    Gid           int64
-    Role          string
-    RoleScore     float64
-    ClusterID     int
-    PriorityScore float64
-    Evidence      string
-    Features      Features // in_deg, out_deg, in_kzt, out_kzt, in_tx, out_tx, pass_through,
-                           // pagerank, betweenness, depth, is_seed, truncated, verified_sink, ...
-}
-type ClusterResult struct { ClusterID int; NNodes, NSeed int; SumKZTInternal float64; TopGids []int64; Hypothesis string }
-type TopNode      struct { Rank int; Gid int64; Role string; PriorityScore float64; Why string }
-type Result struct {
-    Nodes    []NodeResult
-    Clusters []ClusterResult
-    Top      []TopNode
-    Edges    []parquet.Edge          // Src, Dst int64; SumKZT float64; NTx int64; Depth int8
-    ByGid    map[int64]*NodeResult
-}
-func Run(ds parquet.Dataset, opts Options) (*Result, error)   // internal/analysis
-func Load(dir string) (Dataset, error)                        // internal/data/parquet
-```
-
-Пайплайн Артёма также пишет `out/graph.json` — им можно пользоваться для UI до готовности API:
-
-```json
-{
-  "nodes": [{"id":"100000003684369100","role":"consolidator","role_score":0.82,"cluster":3,"priority":0.91,
-             "is_seed":false,"depth":2,"evidence":"...","in_deg":11,"out_deg":1,"in_kzt":4200000,"out_kzt":120000}],
-  "edges": [{"source":"1000...","target":"1000...","sum_kzt":678000,"n_tx":2}],
-  "clusters": [{"id":3,"n_nodes":120,"n_seed":4,"sum_kzt_internal":12000000,"hypothesis":"..."}],
-  "top": [{"rank":1,"gid":"1000...","role":"consolidator","priority":0.91,"why":"..."}]
-}
-```
+- Результат анализа один на процесс: `*models.AnalysisResult` уже провайдится в fx (`internal/app/internal.go`).
+  Сервис графа получает его через `ServiceParams{services.FxBaseParams; Result *models.AnalysisResult}` и **не грузит данные сам**.
+- Модели: `internal/data/models` (`NodeResult{GID, Role, RoleScore, ClusterID, PriorityScore, Evidence, Features}`,
+  `ClusterResult`, `TopNode`, `Edge{Payer, Payee, SumKZT, TxCount}`); методы `result.Node(gid)`, `result.Cluster(id)`.
+- Индекс рёбер: `graph.NewIndex(result.Edges)` → `Incoming/Outgoing`, `Downstream`, `Upstream`, `Path`.
+- DTO уже готовы: `internal/data/dto/graph` (`graphdto.NewGraphResponse`, `NewNodeResponse`, `NewFeaturesResponse`, `GID()`),
+  формат совпадает с `out/graph.json`.
+- Эндпоинты LLM уже реализованы: `GET /v1/assistant/status`, `POST /v1/assistant`, `GET /v1/nodes/{gid}/card`.
+  Образец хендлера — `internal/transport/http/v1/assistant/{core.go,handlers.go}`.
 
 ---
 

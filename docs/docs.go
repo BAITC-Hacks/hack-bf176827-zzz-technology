@@ -15,52 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/health": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "system"
-                ],
-                "summary": "Проверка живости (API + БД)",
-                "operationId": "health",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.HealthResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/httperr.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/items": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "items"
-                ],
-                "summary": "Список элементов",
-                "operationId": "list-items",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ListResponse-dto_Item"
-                        }
-                    }
-                }
-            },
+        "/assistant": {
             "post": {
+                "description": "Ответ строится через инструменты по результату анализа; в gids — упомянутые узлы для подсветки.",
                 "consumes": [
                     "application/json"
                 ],
@@ -68,26 +25,26 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "items"
+                    "assistant"
                 ],
-                "summary": "Создать элемент",
-                "operationId": "create-item",
+                "summary": "Вопрос по графу на естественном языке",
+                "operationId": "assistant-ask",
                 "parameters": [
                     {
-                        "description": "Данные элемента",
+                        "description": "Вопрос",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateItemRequest"
+                            "$ref": "#/definitions/assistantdto.AskRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.Item"
+                            "$ref": "#/definitions/assistantdto.AskResponse"
                         }
                     },
                     "400": {
@@ -101,26 +58,72 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/httperr.Response"
                         }
+                    },
+                    "503": {
+                        "description": "LLM не настроен",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
                     }
                 }
             }
         },
-        "/items/{id}": {
+        "/assistant/status": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "items"
+                    "assistant"
                 ],
-                "summary": "Элемент по id",
-                "operationId": "get-item",
+                "summary": "Доступен ли LLM-ассистент",
+                "operationId": "assistant-status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/assistantdto.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Проверка живости",
+                "operationId": "health",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/nodes/{gid}/card": {
+            "get": {
+                "description": "Четыре блока: роль и почему, потоки, связи, на что обратить внимание. Без ключа — шаблон (by_llm=false).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant"
+                ],
+                "summary": "Справка по узлу",
+                "operationId": "node-card",
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "uuid",
-                        "description": "ID элемента",
-                        "name": "id",
+                        "description": "GID клиента",
+                        "name": "gid",
                         "in": "path",
                         "required": true
                     }
@@ -129,42 +132,8 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.Item"
+                            "$ref": "#/definitions/assistantdto.CardResponse"
                         }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httperr.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httperr.Response"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "items"
-                ],
-                "summary": "Удалить элемент",
-                "operationId": "delete-item",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "ID элемента",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -183,17 +152,62 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.CreateItemRequest": {
+        "assistantdto.AskRequest": {
             "type": "object",
             "required": [
-                "title"
+                "question"
             ],
             "properties": {
-                "title": {
+                "question": {
                     "type": "string",
-                    "maxLength": 200,
-                    "minLength": 1,
-                    "example": "Первый элемент"
+                    "maxLength": 2000
+                }
+            }
+        },
+        "assistantdto.AskResponse": {
+            "type": "object",
+            "properties": {
+                "answer": {
+                    "type": "string"
+                },
+                "cached": {
+                    "type": "boolean"
+                },
+                "gids": {
+                    "description": "упомянутые gid — для подсветки на графе",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "steps": {
+                    "type": "integer"
+                }
+            }
+        },
+        "assistantdto.CardResponse": {
+            "type": "object",
+            "properties": {
+                "by_llm": {
+                    "description": "false — шаблон (нет ключа или LLM недоступен)",
+                    "type": "boolean"
+                },
+                "gid": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "assistantdto.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "model": {
+                    "type": "string"
                 }
             }
         },
@@ -203,31 +217,6 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "ok"
-                }
-            }
-        },
-        "dto.Item": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.ListResponse-dto_Item": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Item"
-                    }
                 }
             }
         },
@@ -270,8 +259,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "/v1",
 	Schemes:          []string{},
-	Title:            "Hackaton API",
-	Description:      "REST API хакатон-проекта.",
+	Title:            "Граф денег — API",
+	Description:      "Роли, кластеры и приоритеты узлов транзакционной сети (HackAlem AI).",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

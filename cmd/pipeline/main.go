@@ -1,82 +1,66 @@
-// Пайплайн: parquet → метрики → роли/кластеры/приоритеты → out/*.csv + out/graph.json.
+// Пайплайн: parquet → анализ → out/*.csv + out/graph.json. Один запуск, без ручных шагов.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log"
+	"os"
 	"time"
 
-	"context"
-	"path/filepath"
+	"hackaton/internal/app"
+	"hackaton/internal/data/models"
+	"hackaton/internal/services/pipeline"
 
-	"hackaton/internal/analysis"
-	"hackaton/internal/config"
-	"hackaton/internal/data/parquet"
-	"hackaton/internal/llm"
-	"hackaton/internal/services/assistant"
+	"go.uber.org/fx"
 )
 
 func main() {
-	data := flag.String("data", "data", "папка с parquet-файлами")
-	out := flag.String("out", "out", "куда писать выгрузки")
+	dataDir := flag.String("data", "data", "папка с parquet-файлами")
+	outDir := flag.String("out", "out", "куда писать выгрузки")
 	topN := flag.Int("top", 30, "размер top_nodes.csv")
-	useLLM := flag.Bool("llm", false, "вызывать LLM для гипотез кластеров (нужен OPENAI_API_KEY); без флага — только кэш")
+	useLLM := flag.Bool("llm", false, "дозапросить у LLM гипотезы кластеров, которых нет в кэше (нужен OPENAI_API_KEY)")
 	flag.Parse()
 
-	start := time.Now()
-	ds, err := parquet.Load(*data)
-	if err != nil {
-		log.Fatalf("load: %v", err)
+	container := fx.New(
+		app.ModuleBase(),
+		app.ModuleRepositories(),
+		app.ModuleServices(),
+		fx.NopLogger,
+		fx.Invoke(func(runner pipeline.Service) error {
+			report, err := runner.Run(context.Background(), pipeline.RunParams{
+				DataDir: *dataDir, OutDir: *outDir, TopN: *topN, UseLLM: *useLLM, WriteOutputs: true,
+			})
+			if err != nil {
+				return err
+			}
+			printReport(report, *outDir)
+			return nil
+		}),
+	)
+	if err := container.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "ошибка:", err)
+		os.Exit(1)
 	}
-	st, err := ds.SanityCheck()
-	if err != nil {
-		log.Fatalf("sanity: %v", err)
-	}
-	fmt.Printf("данные: узлов %d, рёбер %d, tx %d, seed %d, оборот %.0f KZT, период %s — %s, без рёбер %d (seed %d)\n",
-		st.Nodes, st.Edges, st.Tx, st.Seeds, st.TotalKZT, st.DateMin.Format("2006-01-02"), st.DateMax.Format("2006-01-02"), st.Orphans, st.OrphanSeeds)
-
-	res, err := analysis.Run(ds, analysis.Options{TopN: *topN})
-	if err != nil {
-		log.Fatalf("analysis: %v", err)
-	}
-	enrichHypotheses(res, *out, *useLLM)
-	if err := analysis.WriteCSV(res, *out); err != nil {
-		log.Fatalf("csv: %v", err)
-	}
-	if err := analysis.WriteGraphJSON(res, *out); err != nil {
-		log.Fatalf("json: %v", err)
-	}
-
-	roles := map[string]int{}
-	for _, n := range res.Nodes {
-		roles[n.Role]++
-	}
-	fmt.Printf("роли: %v\nкластеров: %d, top: %d, циклов ≤5: %d, устойчивых маршрутов: %d\n", roles, len(res.Clusters), len(res.Top), len(res.Cycles), len(res.Routes))
-	for _, r := range res.Robustness {
-		fmt.Printf("изъятие top-%d: оборот −%.0f%%, компонент %d→%d, крупнейшая %d→%d, без плательщиков %d, seed отрезано %d\n",
-			r.Removed, r.LostTurnoverShare*100, r.ComponentsBefore, r.ComponentsAfter, r.LargestBefore, r.LargestComponent, r.NodesLostAllPayers, r.SeedsDisconnected)
-	}
-	fmt.Printf("готово за %s → %s/\n", time.Since(start).Round(time.Millisecond), *out)
 }
 
-// enrichHypotheses — гипотезы кластеров из кэша llm_cache.json; с --llm и ключом — дозапрос недостающих.
-func enrichHypotheses(res *analysis.Result, out string, useLLM bool) {
-	lc := llm.Config{Model: "gpt-5.1"}
-	if cfg, err := config.New(); err == nil {
-		lc.Model, lc.BaseURL = cfg.LLM.Model, cfg.LLM.BaseURL
-		if useLLM {
-			lc.APIKey = cfg.LLM.APIKey
-		}
+func printReport(report *pipeline.Report, outDir string) {
+	stats, result := report.Stats, report.Result
+	fmt.Printf("данные: узлов %d, рёбер %d, tx %d, seed %d, оборот %.0f KZT, период %s — %s, без рёбер %d (seed %d)\n",
+		stats.Nodes, stats.Edges, stats.Transactions, stats.Seeds, stats.TotalKZT,
+		stats.DateFrom.Format("2006-01-02"), stats.DateTo.Format("2006-01-02"), stats.Orphans, stats.OrphanSeeds)
+
+	roles := map[models.Role]int{}
+	for _, node := range result.Nodes {
+		roles[node.Role]++
 	}
-	if useLLM && lc.APIKey == "" {
-		fmt.Println("llm: ключ не задан, используем только кэш")
+	fmt.Printf("роли: %v\n", roles)
+	fmt.Printf("кластеров: %d (гипотез из кэша/LLM: %d), top: %d, циклов ≤5: %d, устойчивых маршрутов: %d\n",
+		len(result.Clusters), report.HypothesesEnriched, len(result.Top), len(result.Cycles), len(result.Routes))
+	for _, step := range result.Robustness {
+		fmt.Printf("изъятие top-%d: оборот −%.0f%%, компонент %d→%d, крупнейшая %d→%d, без плательщиков %d, seed отрезано %d\n",
+			len(step.RemovedGIDs), step.LostTurnoverShare*100, step.ComponentsBefore, step.ComponentsAfter,
+			step.LargestBefore, step.LargestAfter, step.NodesLostAllPayers, step.SeedsDisconnected)
 	}
-	cache := llm.OpenCache(filepath.Join(out, "llm_cache.json"))
-	svc := assistant.New(res, llm.New(lc), cache)
-	n, err := svc.EnrichHypotheses(context.Background(), 5, 10)
-	if err != nil {
-		fmt.Printf("llm: гипотезы не обновлены: %v\n", err)
-	}
-	fmt.Printf("гипотезы кластеров: %d из кэша/LLM, остальные по шаблону\n", n)
+	fmt.Printf("готово за %s → %s/\n", report.Elapsed.Round(time.Millisecond), outDir)
 }

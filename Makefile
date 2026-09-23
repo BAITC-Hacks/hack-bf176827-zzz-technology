@@ -75,8 +75,8 @@ goose-reset: ## откатить все миграции
 sql: ## sqlc generate → internal/repo/db
 	docker run --rm $(DOCKER_U) -v $(PWD):/src -w /src $(SQLC_IMG) generate
 
-swag: ## swagger → docs/
-	rm -rf ./docs
+swag: ## swagger → docs/ (только сгенерированные файлы; docs/*.md не трогаем)
+	rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
 	$(SWAG) init -g main.go -d cmd/web,internal/transport/http,internal/data/dto,pkg/httperr -o docs
 	$(SWAG) fmt -d cmd/web,internal/transport/http
 

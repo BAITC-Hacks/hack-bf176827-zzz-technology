@@ -1,36 +1,49 @@
 basePath: /v1
 definitions:
-  dto.CreateItemRequest:
+  assistantdto.AskRequest:
     properties:
-      title:
-        example: Первый элемент
-        maxLength: 200
-        minLength: 1
+      question:
+        maxLength: 2000
         type: string
     required:
-    - title
+    - question
+    type: object
+  assistantdto.AskResponse:
+    properties:
+      answer:
+        type: string
+      cached:
+        type: boolean
+      gids:
+        description: упомянутые gid — для подсветки на графе
+        items:
+          type: string
+        type: array
+      steps:
+        type: integer
+    type: object
+  assistantdto.CardResponse:
+    properties:
+      by_llm:
+        description: false — шаблон (нет ключа или LLM недоступен)
+        type: boolean
+      gid:
+        type: string
+      text:
+        type: string
+    type: object
+  assistantdto.StatusResponse:
+    properties:
+      enabled:
+        type: boolean
+      model:
+        type: string
     type: object
   dto.HealthResponse:
     properties:
       status:
         example: ok
         type: string
-    type: object
-  dto.Item:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      title:
-        type: string
-    type: object
-  dto.ListResponse-dto_Item:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/dto.Item'
-        type: array
     type: object
   httperr.Error:
     properties:
@@ -55,10 +68,59 @@ definitions:
     type: object
 info:
   contact: {}
-  description: REST API хакатон-проекта.
-  title: Hackaton API
+  description: Роли, кластеры и приоритеты узлов транзакционной сети (HackAlem AI).
+  title: Граф денег — API
   version: "0.1"
 paths:
+  /assistant:
+    post:
+      consumes:
+      - application/json
+      description: Ответ строится через инструменты по результату анализа; в gids
+        — упомянутые узлы для подсветки.
+      operationId: assistant-ask
+      parameters:
+      - description: Вопрос
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/assistantdto.AskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/assistantdto.AskResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httperr.Response'
+        "503":
+          description: LLM не настроен
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Вопрос по графу на естественном языке
+      tags:
+      - assistant
+  /assistant/status:
+    get:
+      operationId: assistant-status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/assistantdto.StatusResponse'
+      summary: Доступен ли LLM-ассистент
+      tags:
+      - assistant
   /health:
     get:
       operationId: health
@@ -69,86 +131,18 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.HealthResponse'
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/httperr.Response'
-      summary: Проверка живости (API + БД)
+      summary: Проверка живости
       tags:
       - system
-  /items:
+  /nodes/{gid}/card:
     get:
-      operationId: list-items
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.ListResponse-dto_Item'
-      summary: Список элементов
-      tags:
-      - items
-    post:
-      consumes:
-      - application/json
-      operationId: create-item
+      description: 'Четыре блока: роль и почему, потоки, связи, на что обратить внимание.
+        Без ключа — шаблон (by_llm=false).'
+      operationId: node-card
       parameters:
-      - description: Данные элемента
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dto.CreateItemRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/dto.Item'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httperr.Response'
-        "422":
-          description: Unprocessable Entity
-          schema:
-            $ref: '#/definitions/httperr.Response'
-      summary: Создать элемент
-      tags:
-      - items
-  /items/{id}:
-    delete:
-      operationId: delete-item
-      parameters:
-      - description: ID элемента
-        format: uuid
+      - description: GID клиента
         in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httperr.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httperr.Response'
-      summary: Удалить элемент
-      tags:
-      - items
-    get:
-      operationId: get-item
-      parameters:
-      - description: ID элемента
-        format: uuid
-        in: path
-        name: id
+        name: gid
         required: true
         type: string
       produces:
@@ -157,7 +151,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.Item'
+            $ref: '#/definitions/assistantdto.CardResponse'
         "400":
           description: Bad Request
           schema:
@@ -166,7 +160,7 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/httperr.Response'
-      summary: Элемент по id
+      summary: Справка по узлу
       tags:
-      - items
+      - assistant
 swagger: "2.0"

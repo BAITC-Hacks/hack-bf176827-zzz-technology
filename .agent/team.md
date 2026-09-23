@@ -5,9 +5,9 @@
 ## Принципы
 
 - Ветки: `main` (фундамент), `feat/analysis` (Артём), `feat/web` (Дамир). Каждый коммитит в свою ветку.
-- Файлы не пересекаются. Артём: `internal/analysis/**`, `internal/data/parquet/**`, `internal/graph/**`, `cmd/pipeline/**`, `README.md` (разделы «критерии», «ограничения», «масштабирование»). Дамир: `internal/services/graph/**`, `internal/data/dto/**`, `internal/transport/http/v1/graph/**`, `internal/app/*.go`, `cmd/web/**`, `cmd/check/**`, `web/**`, `Makefile`, `Dockerfile`, `docker-compose.yaml`, `docs/` (swagger), `README.md` (разделы «запуск», «структура», «выходы»).
+- Файлы не пересекаются. Артём: `internal/services/{analysis,export,hypotheses,pipeline,assistant}/**`, `internal/data/models/**`, `internal/data/graph/**`, `internal/repo/**`, `pkg/llm/**`, `cmd/{pipeline,ask}/**`, `docs/{methodology,demo}.md`. Дамир: `internal/services/graph/**`, `internal/data/dto/graph/**`, `internal/transport/http/v1/graph/**`, `cmd/check/**`, `web/**`, `Makefile`, `Dockerfile`, `docker-compose.yaml`, `README.md`; в `internal/app/{internal,handlers}.go` и `v1/router.go` только добавляет строки регистрации.
 - Мерж: сначала `feat/web` → `main`, потом Артём делает `git rebase main` и мержит `feat/analysis`. Конфликт возможен только в README — разделы разные, решается руками.
-- Контракт между ветками фиксируется в шаге A0 и не меняется без обсуждения: структуры `analysis.Result`, `analysis.NodeResult`, `analysis.ClusterResult` и формат `out/graph.json`.
+- Контракт между ветками: `*models.AnalysisResult` из fx, DTO в `internal/data/dto/graph`, формат `out/graph.json`. Актуальное описание — `.agent/artem_ready.md` (раздел «Контракт» ниже устарел после рефакторинга).
 
 ## Контракт (фиксируется в A0)
 
