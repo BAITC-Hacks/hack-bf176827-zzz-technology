@@ -1,0 +1,9 @@
+/* Дополнение к design-system.css: цвета ролей AML. Только для узлов графа, точек легенды и маркеров ролей. */
+:root {
+  --aml-consolidator: #dd5b00;
+  --aml-coordinator: #ff64c8;
+  --aml-distributor: #62aef0;
+  --aml-transit: #2a9d99;
+  --aml-terminal: #1aae39;
+  --aml-peripheral: #a39e98;
+}
