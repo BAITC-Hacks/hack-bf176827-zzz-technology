@@ -98,8 +98,14 @@ export default function App() {
     } catch (e) { if (current === version.current) { setError(e.message); setBusy(false); } }
   }, [getEgo, pushRoute, notify]);
 
-  // восстановить последний узел маршрута после загрузки
-  useEffect(() => { if (ready && !restored.current) { restored.current = true; if (route.length) select(route[route.length - 1]); } }, [ready, route, select]);
+  // после загрузки: ?gid=… открывает узел сразу (deep link), иначе восстанавливаем последний узел маршрута
+  useEffect(() => {
+    if (!ready || restored.current) return;
+    restored.current = true;
+    const deepLink = new URLSearchParams(location.search).get('gid');
+    if (deepLink && /^\d{1,19}$/.test(deepLink)) select(deepLink);
+    else if (route.length) select(route[route.length - 1]);
+  }, [ready, route, select]);
 
   async function search(event) {
     event.preventDefault(); const q = query.trim();

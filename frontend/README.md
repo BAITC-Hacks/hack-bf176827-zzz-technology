@@ -1,70 +1,51 @@
 # React-интерфейс «Граф денег»
 
-React + Vite + Cytoscape. Все зависимости входят в локальную сборку, внешних CDN нет.
+React 19 + Vite 7 + cytoscape.js на токенах дизайн-системы (`src/styles/design-system.css`).
+Все зависимости входят в локальную сборку, внешних CDN нет.
 
-## Docker
+## Как отдаётся в проде
 
-Из корня репозитория:
+Отдельного фронт-сервера нет. В Docker-образе React собирается на node-стадии, а Go-сервер раздаёт
+`frontend/dist` и API на одном порту: http://localhost:8080. Из корня репозитория:
 
 ```sh
 docker compose up --build
 ```
 
-Откройте http://localhost:3000. Nginx раздаёт React и проксирует `/v1/` и
-`/swagger/` в сервис `app:8080`. Резервный `/graph.json` читается из общего
-каталога `out/`, поэтому доступен и при временной недоступности API.
+Локально без Docker: `make demo-full` (нужны Node.js 22+ и npm) собирает интерфейс и запускает сервер.
+Если `frontend/dist` нет, сервер отдаёт встроенный резервный просмотрщик из `web/`.
 
 ## Разработка
 
-Node.js 22.12+ (рекомендуется 24), npm; Go API должен быть запущен отдельно.
+Node.js 22.12+ (рекомендуется 24), npm; Go API запускается отдельно.
 
 ```sh
-# Из корня, первый терминал:
+# первый терминал, из корня:
 make web
-# Во втором терминале:
+# второй терминал:
 cd frontend
 npm ci
 npm run dev
 ```
 
-Откройте http://localhost:5173. Для другого адреса API задайте
-`API_PROXY_TARGET=http://127.0.0.1:8081 npm run dev`.
+Откройте http://localhost:5173. Vite проксирует `/v1`, `/swagger` и `/graph.json` на http://127.0.0.1:8080;
+другой адрес задаётся переменной `API_PROXY_TARGET`.
 
-`npm run build` создаёт `dist/`, `npm test` проверяет операции с графом.
-`npm run preview` раздаёт production-сборку с тем же API-прокси.
-`?demo=1` явно включает тестовый граф из 10 узлов; реальная ошибка API
-не подменяется моковыми данными.
+Проверки: `npm test` (операции с графом), `npm run build`.
 
-`make demo` в корне собирает React, выполняет pipeline/check и запускает Go,
-который раздаёт `frontend/dist/` на http://localhost:8080.
+## Структура
 
-Компоненты: `App` — состояние и API, `GraphCanvas` — граф,
-`NodeCard` — карточка, `Assistant` — опциональный LLM-интерфейс.
-`graph.js` содержит операции с графом для резервного источника данных.
-
-## Node.js в WSL
-
-Для проекта в `/home/...` запускайте **Linux Node.js и npm внутри WSL**.
-Windows npm из `/mnt/c/Program Files/nodejs/` вызывает CMD на UNC-пути
-`\\wsl.localhost\Ubuntu\...`, что приводит к ошибке `C:\Windows\install.js`.
-
-Проверка в терминале Ubuntu:
-
-```sh
-command -v node
-command -v npm
-node -p 'process.platform'  # должно быть linux
+```
+src/
+  App.jsx                 состояние экрана, загрузка данных, выбор узла, маршрут
+  api.js                  fetch с разбором ошибок API
+  graph.js                чистые операции над графом (фильтр, окружение, слияние)
+  lib/amlLogic.js         роли, форматирование, сигналы по метрикам, маршрут
+  lib/graphStyle.js       стили cytoscape по токенам, элементы графа
+  hooks/useRoute.js       маршрут просмотра в localStorage
+  components/             Toolbar, SelectedStrip, GraphCanvas, RouteBar, SidePanel, NodeTab, Assistant
+  styles/                 design-system.css (библиотека), tokens.css (цвета ролей)
+  styles.css              раскладка экрана
 ```
 
-Если Node установлен в `~/.local/bin`, включите его в текущем терминале:
-
-```sh
-export PATH="$HOME/.local/bin:$PATH"
-hash -r
-cd ~/hackator
-make frontend-build
-```
-
-`npm ci` самостоятельно пересоздаёт `node_modules` для текущей платформы;
-не переносите этот каталог между Windows и Linux. `make frontend-build`
-проверяет среду до установки и сообщает об ошибочном Windows npm.
+Режим демо с тестовыми данными без бэкенда: http://localhost:5173/?demo.

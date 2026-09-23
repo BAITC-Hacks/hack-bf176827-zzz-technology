@@ -41,8 +41,8 @@ button { font-family: inherit; }
 .legend > span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* тело */
-.body { display: grid; grid-template-columns: minmax(0, 1fr) 400px; flex: 1; min-height: 0; }
-.canvas-col { display: flex; flex-direction: column; min-width: 0; }
+.body { display: grid; grid-template-columns: minmax(0, 1fr) 400px; grid-template-rows: minmax(0, 1fr); flex: 1; min-height: 0; }
+.canvas-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .strip { display: flex; flex-wrap: wrap; align-items: stretch; min-height: 68px; padding-left: 12px; background: var(--apx-surface); border-bottom: 1px solid var(--apx-line); }
 .strip__block { display: grid; gap: 2px; align-content: center; padding: 10px 20px; border-left: 1px solid var(--apx-line); white-space: nowrap; flex: none; }
 .strip__block--first { border-left: 0; }
