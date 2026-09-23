@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 )
@@ -81,6 +82,9 @@ func (c *Cache) Save() error {
 		buf = append(buf, '\n')
 	}
 	buf = append(buf, "}\n"...)
+	if err := os.MkdirAll(filepath.Dir(c.path), 0o755); err != nil {
+		return err
+	}
 	if err := os.WriteFile(c.path, buf, 0o644); err != nil {
 		return err
 	}

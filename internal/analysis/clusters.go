@@ -89,6 +89,11 @@ func describeClusters(g *graph.Graph, res *Result) {
 			byID[d.ClusterID].SumKZTIn += e.SumKZT
 		}
 	}
+	for _, cy := range res.Cycles {
+		if n := res.ByGid[cy.Nodes[0]]; n != nil {
+			byID[n.ClusterID].NCycles++
+		}
+	}
 	for _, i := range sortedByPriority(res) {
 		n := res.Nodes[i]
 		c := byID[n.ClusterID]

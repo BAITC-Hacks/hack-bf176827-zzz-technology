@@ -38,7 +38,7 @@ func (s *Service) Card(ctx context.Context, gid string) (text string, generated 
 	}
 	out, err := s.llm.Complete(ctx, systemPrompt, cardPrompt+"\n\n"+string(fb), "", nil)
 	if err != nil {
-		return s.templateCard(n), false, nil
+		return s.templateCard(n), false, err // шаблон + ошибка: вызывающий решает, показывать ли её
 	}
 	if s.cache != nil {
 		s.cache.Put(key, out)

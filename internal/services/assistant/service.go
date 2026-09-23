@@ -271,9 +271,10 @@ func (s *Service) whoReceivesFrom(gids []string, depth int) (any, error) {
 	}
 	type hit struct {
 		brief
-		Dist      int      `json:"distance"`
-		FromCount int      `json:"reached_from_n_sources"`
-		From      []string `json:"reached_from"`
+		Dist       int                `json:"distance"`
+		FromCount  int                `json:"reached_from_n_sources"`
+		From       []string           `json:"reached_from"`
+		DirectSums map[string]float64 `json:"direct_sum_kzt_from_source"` // прямые переводы источник→узел
 	}
 	agg := map[int64]*hit{}
 	for _, st := range start {
@@ -294,6 +295,14 @@ func (s *Service) whoReceivesFrom(gids []string, depth int) (any, error) {
 			h.From = append(h.From, strconv.FormatInt(st, 10))
 			if d < h.Dist {
 				h.Dist = d
+			}
+			for _, e := range s.idx.Out[st] {
+				if e.Dst == gid {
+					if h.DirectSums == nil {
+						h.DirectSums = map[string]float64{}
+					}
+					h.DirectSums[strconv.FormatInt(st, 10)] = e.SumKZT
+				}
 			}
 		}
 	}
@@ -437,71 +446,7 @@ func (s *Service) removeNodes(gids []string) (any, error) {
 		}
 		removed[v] = true
 	}
-	var lost, total float64
-	adj := map[int64][]int64{}
-	orphaned := map[int64]bool{}
-	for _, e := range s.res.Edges {
-		total += e.SumKZT
-		if removed[e.Src] || removed[e.Dst] {
-			lost += e.SumKZT
-			if removed[e.Src] && !removed[e.Dst] {
-				orphaned[e.Dst] = true
-			}
-			continue
-		}
-		adj[e.Src] = append(adj[e.Src], e.Dst)
-		adj[e.Dst] = append(adj[e.Dst], e.Src)
-	}
-	// компоненты после удаления (только узлы с рёбрами)
-	seen := map[int64]bool{}
-	comps := 0
-	largest := 0
-	for u := range adj {
-		if seen[u] {
-			continue
-		}
-		comps++
-		size := 0
-		stack := []int64{u}
-		seen[u] = true
-		for len(stack) > 0 {
-			x := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			size++
-			for _, y := range adj[x] {
-				if !seen[y] {
-					seen[y] = true
-					stack = append(stack, y)
-				}
-			}
-		}
-		if size > largest {
-			largest = size
-		}
-	}
-	// у кого пропали все входящие
-	var fullyCut []string
-	for gid := range orphaned {
-		alive := false
-		for _, e := range s.idx.In[gid] {
-			if !removed[e.Src] {
-				alive = true
-				break
-			}
-		}
-		if !alive {
-			fullyCut = append(fullyCut, strconv.FormatInt(gid, 10))
-		}
-	}
-	sort.Strings(fullyCut)
-	if len(fullyCut) > 30 {
-		fullyCut = fullyCut[:30]
-	}
-	return map[string]any{
-		"removed": len(removed), "lost_turnover_kzt": lost, "lost_turnover_share": lost / total,
-		"components_after": comps, "largest_component_after": largest,
-		"nodes_lost_all_incoming": len(fullyCut), "examples_lost_all_incoming": fullyCut,
-	}, nil
+	return analysis.Robustness(s.res, removed), nil
 }
 
 func sortedIdx(res *analysis.Result) []int {

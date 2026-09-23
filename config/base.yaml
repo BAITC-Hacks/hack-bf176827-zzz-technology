@@ -16,5 +16,5 @@ app:
     - Authorization
 
 llm:
-  model: gpt-5-codex
+  model: gpt-5.1
   base_url: https://api.openai.com/v1

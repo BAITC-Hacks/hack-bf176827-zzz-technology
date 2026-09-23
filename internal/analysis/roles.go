@@ -42,7 +42,14 @@ func assignRoles(g *graph.Graph, res *Result) {
 			}
 		}
 		n.Role, n.RoleScore = best, round2(bestScore)
-		n.Evidence = truncate(evidence(n, th), 200)
+		ev := evidence(n, th)
+		if n.Features.InCycle && n.Role != RolePeripheral {
+			ev += "; в возвратном цикле"
+		}
+		if n.Features.RepeatRoutes > 0 && (n.Role == RoleTransit || n.Role == RoleCoordinator) {
+			ev += fmt.Sprintf("; устойчивых маршрутов через узел: %d", n.Features.RepeatRoutes)
+		}
+		n.Evidence = truncate(ev, 200)
 	}
 }
 
