@@ -83,7 +83,9 @@ The pipeline finishes in **under a second**; no internet and no LLM key are need
 tools that knows the selected node and the route. Everything is cached in `out/llm_cache.json` (committed),
 so the texts reproduce exactly without a key.
 
-![Graph analysis interface](docs/main_front.png)
+![Transfer graph and top 30 candidates for review](docs/top_30.jpg)
+
+*Top 30: candidates for review with roles, priorities, and supporting evidence.*
 
 ## How it works
 
@@ -112,6 +114,10 @@ Roles and priorities are computed by a local algorithm. The LLM receives ready f
 roles, clusters or priorities. Two pipeline runs produce byte-identical files.
 
 ### Role criteria and thresholds
+
+![Transfer graph and metric signals for the selected node](docs/metrics.jpg)
+
+*The selected node’s metrics compared with the entire network help verify the reasoning behind its role.*
 
 For each role a 0–1 score is computed by a thresholded rule; the node's role is the one with the highest score,
 `role_score` is that score. If no rule reaches 0.5, the node is `peripheral`. Thresholds come from the data distributions.
@@ -172,6 +178,10 @@ so quality is judged by the explainability of every decision.
    gids are 18-digit numbers; open them as text in Excel.
 
 A one-minute walkthrough of five nodes and assistant questions: [docs/demo.md](docs/demo.md).
+
+![Transfer graph, network robustness, and clusters with hypotheses](docs/clusters.jpg)
+
+*The Clusters tab: group hypotheses and the impact of removing the top 5/10/20 nodes on turnover and network connectivity.*
 
 ### Verification via the API
 
