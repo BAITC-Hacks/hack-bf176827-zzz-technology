@@ -4,67 +4,59 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
-	"hackaton/internal/analysis"
-	"hackaton/internal/llm"
+	graphdto "hackaton/internal/data/dto/graph"
+	"hackaton/internal/data/models"
+	"hackaton/pkg/llm"
+
+	"go.uber.org/zap"
 )
 
-const cardPrompt = `Составь краткую справку по клиенту для AML-аналитика по фактам ниже (JSON). Четыре блока с заголовками:
-"Роль и почему", "Потоки", "Связи", "На что обратить внимание". До 900 символов. Только факты из JSON, все gid полностью.
-Формулировки — гипотезы ("признаки ..."), без утверждений о виновности. В последнем блоке — какой запрос аналитику стоит сделать дальше.`
-
-// Card — справка по узлу: LLM по фактам, при отсутствии ключа — шаблон.
-func (s *Service) Card(ctx context.Context, gid string) (text string, generated bool, err error) {
-	g, err := parseGid(gid)
-	if err != nil {
-		return "", false, err
-	}
-	n, ok := s.res.ByGid[g]
+func (s *service) Card(ctx context.Context, gid int64) (Card, error) {
+	node, ok := s.result.Node(gid)
 	if !ok {
-		return "", false, fmt.Errorf("узел %s не найден", gid)
+		return Card{}, ErrNodeNotFound
 	}
-	facts, _ := s.nodeCard(gid)
-	fb, _ := json.Marshal(facts)
-	key := llm.Key("card", s.llm.Model(), string(fb))
-	if s.cache != nil {
-		if v, ok := s.cache.Get(key); ok {
-			return v, true, nil
-		}
+	facts, _ := json.Marshal(s.buildNodeCard(node))
+	cacheKey := llm.Key("card", s.llm.Model(), string(facts))
+	if text, ok := s.cache.Get(cacheKey); ok {
+		return Card{Text: text, ByLLM: true}, nil
 	}
 	if !s.llm.Enabled() {
-		return s.templateCard(n), false, nil
+		return Card{Text: s.templateCard(node)}, nil
 	}
-	out, err := s.llm.Complete(ctx, systemPrompt, cardPrompt+"\n\n"+string(fb), "", nil)
+	text, err := s.llm.Complete(ctx, systemPrompt, cardPrompt+"\n\n"+string(facts), "", nil)
 	if err != nil {
-		return s.templateCard(n), false, err // шаблон + ошибка: вызывающий решает, показывать ли её
+		s.logger.Warn("llm card failed, using template", zap.Error(err), zap.Int64("gid", gid))
+		return Card{Text: s.templateCard(node)}, nil
 	}
-	if s.cache != nil {
-		s.cache.Put(key, out)
-		_ = s.cache.Save()
+	s.cache.Put(cacheKey, text)
+	if err := s.cache.Save(); err != nil {
+		s.logger.Warn("failed to save llm cache", zap.Error(err))
 	}
-	return out, true, nil
+	return Card{Text: text, ByLLM: true}, nil
 }
 
-func (s *Service) templateCard(n *analysis.NodeResult) string {
-	f := n.Features
+// templateCard — справка без LLM: те же четыре блока по шаблону.
+func (s *service) templateCard(node *models.NodeResult) string {
+	f := node.Features
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Роль и почему\n%s (уверенность %.2f). %s\n\n", n.Role, n.RoleScore, n.Evidence)
+	fmt.Fprintf(&sb, "Роль и почему\n%s (уверенность %.2f). %s\n\n", node.Role, node.RoleScore, node.Evidence)
 	fmt.Fprintf(&sb, "Потоки\nВход: %d плательщиков, %d переводов, %.0f KZT. Выход: %d получателей, %d переводов, %.0f KZT. Активных дней: %d.\n\n",
-		f.InDeg, f.InTx, f.InKZT, f.OutDeg, f.OutTx, f.OutKZT, f.ActiveDays)
+		f.InDegree, f.InTxCount, f.InKZT, f.OutDegree, f.OutTxCount, f.OutKZT, f.ActiveDays)
 	sb.WriteString("Связи\n")
-	for i, e := range s.idx.In[n.Gid] {
+	for i, edge := range s.index.Incoming[node.GID] {
 		if i >= 5 {
 			break
 		}
-		fmt.Fprintf(&sb, "← %s: %.0f KZT (%d перев.)\n", strconv.FormatInt(e.Src, 10), e.SumKZT, e.NTx)
+		fmt.Fprintf(&sb, "← %s: %.0f KZT (%d перев.)\n", graphdto.GID(edge.Payer), edge.SumKZT, edge.TxCount)
 	}
-	for i, e := range s.idx.Out[n.Gid] {
+	for i, edge := range s.index.Outgoing[node.GID] {
 		if i >= 5 {
 			break
 		}
-		fmt.Fprintf(&sb, "→ %s: %.0f KZT (%d перев.)\n", strconv.FormatInt(e.Dst, 10), e.SumKZT, e.NTx)
+		fmt.Fprintf(&sb, "→ %s: %.0f KZT (%d перев.)\n", graphdto.GID(edge.Payee), edge.SumKZT, edge.TxCount)
 	}
 	sb.WriteString("\nНа что обратить внимание\n")
 	switch {
@@ -72,8 +64,8 @@ func (s *Service) templateCard(n *analysis.NodeResult) string {
 		sb.WriteString("Исходящие не видны (4-е колено): запросить переводы этого клиента, чтобы понять, сток это или транзит.")
 	case f.IsSeed:
 		sb.WriteString("Seed: входящие занижены выгрузкой. Запросить входящие переводы извне выборки.")
-	case f.NSeedUpstream >= 3:
-		fmt.Fprintf(&sb, "К узлу ведут цепочки от %d seed — кандидат на углублённую проверку.", f.NSeedUpstream)
+	case f.SeedUpstream >= 3:
+		fmt.Fprintf(&sb, "К узлу ведут цепочки от %d seed — кандидат на углублённую проверку.", f.SeedUpstream)
 	default:
 		sb.WriteString("Проверить контрагентов с наибольшими суммами и их роли.")
 	}

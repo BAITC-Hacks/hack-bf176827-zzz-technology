@@ -1,3 +1,4 @@
+# docker compose up --build  →  http://localhost:8080 (интерфейс, API, swagger)
 services:
   app:
     build: .
@@ -7,20 +8,4 @@ services:
       APP_ENVIRONMENT: prod
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
-      - ./out:/app/out
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/v1/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 30s
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:80"
-    volumes:
-      - ./out:/data:ro
-    depends_on:
-      app:
-        condition: service_healthy
+      - ./out:/app/out # выгрузки CSV появляются на хосте; здесь же кэш LLM

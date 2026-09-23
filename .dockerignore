@@ -1,9 +1,13 @@
 .git
 .idea
 .vscode
+.agent
 bin
 .env
 *.md
+docs/*.png
+docs/*.svg
 docker-compose.yaml
 frontend/node_modules
 frontend/dist
+tests

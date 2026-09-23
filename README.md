@@ -3,31 +3,30 @@ Hackathon team repository for Zzz Technology
 
 ## Запуск
 
-Требуются Go 1.25.7+, Node.js 22.12+ (рекомендуется 24), npm и Make
-либо Docker с Compose. Исходные Parquet находятся
-в `data/`; после получения зависимостей приложение работает без интернета.
-Первый `go run` и сборка Docker требуют доступа к реестрам зависимостей.
+Самый простой путь — Docker (нужен только Docker с Compose, интернет на время сборки):
 
 ```sh
-make demo
-# Альтернатива:
 docker compose up --build
 ```
 
-`make demo` собирает React, затем последовательно выполняет анализ, проверку
-CSV и запуск Go-сервера. Локально интерфейс: http://localhost:8080.
-В Docker Compose интерфейс: http://localhost:3000, API: http://localhost:8080.
-Swagger доступен по `/swagger/index.html` на обоих Docker-портах.
-Compose запускает два сервиса: Go `app` и React/Nginx `frontend`.
-Выгрузки: `out/` (Docker также сохраняет их в этот каталог хоста).
-Остановка локального сервера — Ctrl+C, контейнера — `docker compose down`.
+Через минуту-две откройте http://localhost:8080 — интерфейс, API (`/v1/*`) и Swagger (`/swagger/index.html`)
+на одном порту. React собирается внутри образа, Node.js на машине не нужен. Выгрузки `nodes_roles.csv`,
+`clusters.csv`, `top_nodes.csv`, `graph.json` появляются в `out/` на хосте. Остановка — `docker compose down`.
 
-Для разработки UI: `cd frontend && npm ci && npm run dev`
-(http://localhost:5173, прокси к API на 8080). Для повторного запуска
-только Go-сервера — `make web`; на старте он самостоятельно
-загружает Parquet и рассчитывает анализ в памяти. Настройки — `config/base.yaml`;
-переопределения: `APP_PORT`, `APP_DATA_DIR`, `APP_OUT_DIR`, `APP_ENVIRONMENT`.
-Секреты хранятся только в переменных окружения или локальном `.env`.
+Без Docker (нужен Go 1.25+):
+
+```sh
+make demo        # pipeline → check → web на :8080 со встроенным просмотрщиком
+make demo-full   # то же с React-интерфейсом; дополнительно нужны Node.js 22+ и npm
+```
+
+Пайплайн отрабатывает меньше секунды, выгрузки — в `out/`. Опциональный LLM-слой (справка по узлу,
+ассистент, гипотезы кластеров) включается ключом `OPENAI_API_KEY` в `.env` или окружении; без ключа
+всё работает на шаблонах, а 53 гипотезы берутся из закоммиченного кэша `out/llm_cache.json`.
+
+Для разработки UI: `cd frontend && npm ci && npm run dev` (http://localhost:5173, прокси к API на 8080).
+Только Go-сервер — `make web`; на старте он сам считает анализ в памяти. Настройки — `config/base.yaml`;
+переопределения: `APP_PORT`, `APP_DATA_DIR`, `APP_OUT_DIR`, `APP_ENVIRONMENT`, `LLM_MODEL`.
 
 ## Структура репозитория
 
@@ -37,13 +36,16 @@ Compose запускает два сервиса: Go `app` и React/Nginx `front
 | `cmd/pipeline/` | Расчёт и экспорт |
 | `cmd/check/` | Проверка трёх CSV |
 | `cmd/web/` | HTTP-сервер и Docker entrypoint |
-| `internal/analysis/`, `internal/graph/` | Аналитика и граф Артёма |
+| `internal/data/models/`, `internal/data/graph/` | Доменные модели, граф и индекс рёбер |
+| `internal/repo/dataset/` | Загрузка и проверка parquet |
+| `internal/services/analysis/` | Метрики, роли, кластеры, приоритет, паттерны |
+| `internal/services/{pipeline,export,hypotheses,assistant}/` | Оркестрация, выгрузки, LLM-слой |
 | `internal/services/graph/` | Индексы, фильтры, поиск и окружение |
-| `internal/data/dto/` | JSON-контракт, gid строками |
-| `internal/transport/http/v1/graph/` | HTTP-хендлеры |
-| `frontend/` | React + Vite + Cytoscape, отдельный Dockerfile и Nginx |
+| `internal/data/dto/{graph,assistant}/` | JSON-контракт, gid строками |
+| `internal/transport/http/v1/{graph,assistant}/` | HTTP-хендлеры |
+| `frontend/` | React + Vite + Cytoscape; собирается в Docker или `make frontend-build` |
 | `web/` | Встроенный резервный просмотрщик этапа D0 |
-| `docs/` | Swagger, скриншот и схема |
+| `docs/` | Swagger, методология (`methodology.md`), сценарий демо (`demo.md`), схема решения (`scheme.png`) |
 
 ## Что на выходе
 

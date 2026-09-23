@@ -48,7 +48,7 @@ func newFiberApp(cfg *config.Config, log *zap.Logger) *fiber.App {
 		DisableStartupMessage: true, // стартуем через zap
 		ErrorHandler:          httperr.Handler(log),
 		ReadTimeout:           30 * time.Second,
-		WriteTimeout:          30 * time.Second,
+		WriteTimeout:          2 * time.Minute, // ответ LLM-ассистента до 90 с
 		IdleTimeout:           2 * time.Minute,
 	})
 }

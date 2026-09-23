@@ -1,145 +1,91 @@
-// Package graph предоставляет доступ к неизменяемому результату анализа.
+// Package graph — чтение результата анализа для UI: фильтры, окружение узла, топ, кластеры, поиск.
 package graph
 
 import (
-	"context"
 	"strconv"
 	"strings"
 
-	"go.uber.org/fx"
-	"hackaton/internal/analysis"
-	"hackaton/internal/config"
-	"hackaton/internal/data/parquet"
-	"hackaton/pkg/httperr"
+	"hackaton/internal/data/graph"
+	"hackaton/internal/data/models"
+	"hackaton/internal/services"
+
+	"go.uber.org/zap"
 )
 
-type Filter struct {
-	Role               string
-	Cluster, Component *int
-	TopOnly            int
-}
-type Subgraph struct {
-	Nodes []analysis.NodeResult
-	Edges []parquet.Edge
-}
-type NodeCard struct {
-	Node               analysis.NodeResult
-	Incoming, Outgoing []parquet.Edge
-}
+const (
+	minEgoDepth = 1
+	maxEgoDepth = 2
+)
+
 type Service interface {
-	Graph(Filter) Subgraph
-	Node(int64) (*NodeCard, error)
-	Ego(int64, int) (Subgraph, error)
-	Top(int) []analysis.TopNode
-	Clusters() []analysis.ClusterResult
-	Search(string, int) []analysis.NodeResult
-}
-type service struct {
-	result  *analysis.Result
-	in, out map[int64][]parquet.Edge
+	Graph(filter Filter) Subgraph
+	Node(gid int64) (*NodeCard, error)
+	Ego(gid int64, depth int) (Subgraph, error)
+	Top(n int) []models.TopNode
+	Clusters() []models.ClusterResult
+	Search(prefix string, limit int) []models.NodeResult
 }
 
-// NewService загружает данные до открытия HTTP-порта; далее результат только читается.
-func NewService(lc fx.Lifecycle, cfg *config.Config) Service {
-	s := &service{}
-	lc.Append(fx.Hook{OnStart: func(context.Context) error {
-		ds, err := parquet.Load(cfg.App.DataDir)
-		if err != nil {
-			return err
-		}
-		result, err := analysis.Run(ds, analysis.Options{TopN: len(ds.Nodes)})
-		if err != nil {
-			return err
-		}
-		s.initialize(result)
-		return nil
-	}})
-	return s
+type service struct {
+	logger *zap.Logger
+	result *models.AnalysisResult
+	index  *graph.Index
 }
-func (s *service) initialize(result *analysis.Result) {
-	s.result = result
-	s.in = map[int64][]parquet.Edge{}
-	s.out = map[int64][]parquet.Edge{}
-	for _, e := range result.Edges {
-		s.out[e.Src] = append(s.out[e.Src], e)
-		s.in[e.Dst] = append(s.in[e.Dst], e)
+
+type ServiceParams struct {
+	services.FxBaseParams
+	Result *models.AnalysisResult
+}
+
+func NewService(params ServiceParams) Service {
+	return &service{
+		logger: params.Logger.Named("graph_service"),
+		result: params.Result,
+		index:  graph.NewIndex(params.Result.Edges),
 	}
 }
-func (s *service) expand(ids map[int64]bool, depth int) map[int64]bool {
-	frontier := make([]int64, 0, len(ids))
-	for id := range ids {
-		frontier = append(frontier, id)
-	}
-	for step := 0; step < depth; step++ {
-		next := []int64{}
-		for _, id := range frontier {
-			for _, e := range s.out[id] {
-				if !ids[e.Dst] {
-					ids[e.Dst] = true
-					next = append(next, e.Dst)
-				}
-			}
-			for _, e := range s.in[id] {
-				if !ids[e.Src] {
-					ids[e.Src] = true
-					next = append(next, e.Src)
-				}
-			}
+
+// Graph — вся сеть или топ-N с соседями, с фильтрами по роли, кластеру и компоненте.
+func (s *service) Graph(filter Filter) Subgraph {
+	selected := map[int64]bool{}
+	if filter.TopOnly > 0 {
+		for _, top := range s.Top(filter.TopOnly) {
+			selected[top.GID] = true
 		}
-		frontier = next
-	}
-	return ids
-}
-func (s *service) subset(ids map[int64]bool) Subgraph {
-	g := Subgraph{Nodes: []analysis.NodeResult{}, Edges: []parquet.Edge{}}
-	for _, n := range s.result.Nodes {
-		if ids[n.Gid] {
-			g.Nodes = append(g.Nodes, n)
-		}
-	}
-	for _, e := range s.result.Edges {
-		if ids[e.Src] && ids[e.Dst] {
-			g.Edges = append(g.Edges, e)
-		}
-	}
-	return g
-}
-func (s *service) Graph(f Filter) Subgraph {
-	ids := map[int64]bool{}
-	if f.TopOnly > 0 {
-		for _, n := range s.Top(f.TopOnly) {
-			ids[n.Gid] = true
-		}
-		s.expand(ids, 1)
+		s.expand(selected, 1)
 	} else {
-		for _, n := range s.result.Nodes {
-			ids[n.Gid] = true
+		for _, node := range s.result.Nodes {
+			selected[node.GID] = true
 		}
 	}
-	for _, n := range s.result.Nodes {
-		if f.Role != "" && n.Role != f.Role || f.Cluster != nil && n.ClusterID != *f.Cluster || f.Component != nil && n.Features.ComponentID != *f.Component {
-			delete(ids, n.Gid)
+	for _, node := range s.result.Nodes {
+		if !filter.matches(node) {
+			delete(selected, node.GID)
 		}
 	}
-	return s.subset(ids)
+	return s.subset(selected)
 }
+
 func (s *service) Node(gid int64) (*NodeCard, error) {
-	n, ok := s.result.ByGid[gid]
+	node, ok := s.result.Node(gid)
 	if !ok {
-		return nil, httperr.NotFound("node_not_found", "Узел не найден")
+		return nil, ErrNodeNotFound
 	}
-	return &NodeCard{Node: *n, Incoming: s.in[gid], Outgoing: s.out[gid]}, nil
+	return &NodeCard{Node: *node, Incoming: s.index.Incoming[gid], Outgoing: s.index.Outgoing[gid]}, nil
 }
+
+// Ego — окружение узла в обе стороны на depth шагов.
 func (s *service) Ego(gid int64, depth int) (Subgraph, error) {
-	if depth < 1 || depth > 2 {
-		return Subgraph{}, httperr.BadRequest("invalid_depth", "depth должен быть 1 или 2")
+	if depth < minEgoDepth || depth > maxEgoDepth {
+		return Subgraph{}, ErrInvalidDepth
 	}
-	if _, err := s.Node(gid); err != nil {
-		return Subgraph{}, err
+	if _, ok := s.result.Node(gid); !ok {
+		return Subgraph{}, ErrNodeNotFound
 	}
 	return s.subset(s.expand(map[int64]bool{gid: true}, depth)), nil
 }
-func (s *service) Top(n int) []analysis.TopNode {
+
+func (s *service) Top(n int) []models.TopNode {
 	if n < 0 {
 		n = 0
 	}
@@ -148,19 +94,65 @@ func (s *service) Top(n int) []analysis.TopNode {
 	}
 	return s.result.Top[:n]
 }
-func (s *service) Clusters() []analysis.ClusterResult { return s.result.Clusters }
-func (s *service) Search(prefix string, limit int) []analysis.NodeResult {
-	out := []analysis.NodeResult{}
+
+func (s *service) Clusters() []models.ClusterResult { return s.result.Clusters }
+
+// Search — узлы, чей GID начинается с prefix (пустой prefix — первые limit узлов).
+func (s *service) Search(prefix string, limit int) []models.NodeResult {
+	found := []models.NodeResult{}
 	if limit <= 0 {
-		return out
+		return found
 	}
-	for _, n := range s.result.Nodes {
-		if strings.HasPrefix(strconv.FormatInt(n.Gid, 10), prefix) {
-			out = append(out, n)
-			if len(out) == limit {
+	for _, node := range s.result.Nodes {
+		if strings.HasPrefix(strconv.FormatInt(node.GID, 10), prefix) {
+			found = append(found, node)
+			if len(found) == limit {
 				break
 			}
 		}
 	}
-	return out
+	return found
+}
+
+// expand — добавляет соседей (в обе стороны) на depth шагов.
+func (s *service) expand(selected map[int64]bool, depth int) map[int64]bool {
+	frontier := make([]int64, 0, len(selected))
+	for gid := range selected {
+		frontier = append(frontier, gid)
+	}
+	for step := 0; step < depth; step++ {
+		var next []int64
+		for _, gid := range frontier {
+			for _, edge := range s.index.Outgoing[gid] {
+				if !selected[edge.Payee] {
+					selected[edge.Payee] = true
+					next = append(next, edge.Payee)
+				}
+			}
+			for _, edge := range s.index.Incoming[gid] {
+				if !selected[edge.Payer] {
+					selected[edge.Payer] = true
+					next = append(next, edge.Payer)
+				}
+			}
+		}
+		frontier = next
+	}
+	return selected
+}
+
+// subset — узлы из selected и рёбра между ними, в порядке результата анализа.
+func (s *service) subset(selected map[int64]bool) Subgraph {
+	sub := Subgraph{Nodes: []models.NodeResult{}, Edges: []models.Edge{}}
+	for _, node := range s.result.Nodes {
+		if selected[node.GID] {
+			sub.Nodes = append(sub.Nodes, node)
+		}
+	}
+	for _, edge := range s.result.Edges {
+		if selected[edge.Payer] && selected[edge.Payee] {
+			sub.Edges = append(sub.Edges, edge)
+		}
+	}
+	return sub
 }

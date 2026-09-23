@@ -15,6 +15,79 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/assistant": {
+            "post": {
+                "description": "Ответ строится через инструменты по результату анализа; в gids — упомянутые узлы для подсветки.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant"
+                ],
+                "summary": "Вопрос по графу на естественном языке",
+                "operationId": "assistant-ask",
+                "parameters": [
+                    {
+                        "description": "Вопрос",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/assistantdto.AskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/assistantdto.AskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "LLM не настроен",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/assistant/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant"
+                ],
+                "summary": "Доступен ли LLM-ассистент",
+                "operationId": "assistant-status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/assistantdto.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/clusters": {
             "get": {
                 "produces": [
@@ -24,13 +97,14 @@ const docTemplate = `{
                     "graph"
                 ],
                 "summary": "Кластеры сети",
+                "operationId": "clusters",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.ClusterDTO"
+                                "$ref": "#/definitions/graphdto.ClusterResponse"
                             }
                         }
                     }
@@ -39,6 +113,7 @@ const docTemplate = `{
         },
         "/graph": {
             "get": {
+                "description": "Вся сеть или top-N узлов с соседями; фильтры по роли, кластеру, компоненте.",
                 "produces": [
                     "application/json"
                 ],
@@ -46,6 +121,7 @@ const docTemplate = `{
                     "graph"
                 ],
                 "summary": "Граф переводов",
+                "operationId": "graph",
                 "parameters": [
                     {
                         "type": "string",
@@ -76,7 +152,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GraphResponse"
+                            "$ref": "#/definitions/graphdto.SubgraphResponse"
                         }
                     },
                     "400": {
@@ -116,11 +192,12 @@ const docTemplate = `{
                 "tags": [
                     "graph"
                 ],
-                "summary": "Карточка узла и соседи",
+                "summary": "Карточка узла и контрагенты",
+                "operationId": "node",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "gid (int64 строкой)",
+                        "description": "GID клиента",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -130,7 +207,49 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.NodeCardDTO"
+                            "$ref": "#/definitions/graphdto.NodeCardResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/nodes/{gid}/card": {
+            "get": {
+                "description": "Четыре блока: роль и почему, потоки, связи, на что обратить внимание. Без ключа — шаблон (by_llm=false).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant"
+                ],
+                "summary": "Справка по узлу",
+                "operationId": "node-card",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GID клиента",
+                        "name": "gid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/assistantdto.CardResponse"
                         }
                     },
                     "400": {
@@ -156,11 +275,12 @@ const docTemplate = `{
                 "tags": [
                     "graph"
                 ],
-                "summary": "Окружение в один или два шага",
+                "summary": "Окружение узла в один или два шага",
+                "operationId": "node-ego",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "gid",
+                        "description": "GID клиента",
                         "name": "gid",
                         "in": "path",
                         "required": true
@@ -181,7 +301,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GraphResponse"
+                            "$ref": "#/definitions/graphdto.SubgraphResponse"
                         }
                     },
                     "400": {
@@ -207,11 +327,12 @@ const docTemplate = `{
                 "tags": [
                     "graph"
                 ],
-                "summary": "Поиск по префиксу gid",
+                "summary": "Поиск по началу GID",
+                "operationId": "search",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Префикс gid",
+                        "description": "Префикс GID",
                         "name": "q",
                         "in": "query"
                     },
@@ -229,7 +350,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.NodeDTO"
+                                "$ref": "#/definitions/graphdto.NodeDetailResponse"
                             }
                         }
                     },
@@ -251,6 +372,7 @@ const docTemplate = `{
                     "graph"
                 ],
                 "summary": "Топ приоритетов",
+                "operationId": "top",
                 "parameters": [
                     {
                         "type": "integer",
@@ -266,7 +388,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.TopDTO"
+                                "$ref": "#/definitions/graphdto.TopNodeResponse"
                             }
                         }
                     },
@@ -281,7 +403,75 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.ClusterDTO": {
+        "assistantdto.AskRequest": {
+            "type": "object",
+            "required": [
+                "question"
+            ],
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "maxLength": 2000
+                }
+            }
+        },
+        "assistantdto.AskResponse": {
+            "type": "object",
+            "properties": {
+                "answer": {
+                    "type": "string"
+                },
+                "cached": {
+                    "type": "boolean"
+                },
+                "gids": {
+                    "description": "упомянутые gid — для подсветки на графе",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "steps": {
+                    "type": "integer"
+                }
+            }
+        },
+        "assistantdto.CardResponse": {
+            "type": "object",
+            "properties": {
+                "by_llm": {
+                    "description": "false — шаблон (нет ключа или LLM недоступен)",
+                    "type": "boolean"
+                },
+                "gid": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "assistantdto.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "model": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "graphdto.ClusterResponse": {
             "type": "object",
             "properties": {
                 "component": {
@@ -293,13 +483,28 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "n_cycles": {
+                    "type": "integer"
+                },
                 "n_nodes": {
                     "type": "integer"
                 },
                 "n_seed": {
                     "type": "integer"
                 },
+                "roles": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "sum_kzt_in": {
+                    "type": "number"
+                },
                 "sum_kzt_internal": {
+                    "type": "number"
+                },
+                "sum_kzt_out": {
                     "type": "number"
                 },
                 "top_gids": {
@@ -310,12 +515,9 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.EdgeDTO": {
+        "graphdto.EdgeResponse": {
             "type": "object",
             "properties": {
-                "depth": {
-                    "type": "integer"
-                },
                 "n_tx": {
                     "type": "integer"
                 },
@@ -330,67 +532,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.GraphResponse": {
-            "type": "object",
-            "properties": {
-                "edges": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.EdgeDTO"
-                    }
-                },
-                "nodes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.NodeDTO"
-                    }
-                }
-            }
-        },
-        "dto.HealthResponse": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "example": "ok"
-                }
-            }
-        },
-        "dto.NeighborDTO": {
-            "type": "object",
-            "properties": {
-                "gid": {
-                    "type": "string"
-                },
-                "n_tx": {
-                    "type": "integer"
-                },
-                "sum_kzt": {
-                    "type": "number"
-                }
-            }
-        },
-        "dto.NodeCardDTO": {
-            "type": "object",
-            "properties": {
-                "incoming": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.NeighborDTO"
-                    }
-                },
-                "node": {
-                    "$ref": "#/definitions/dto.NodeDTO"
-                },
-                "outgoing": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.NeighborDTO"
-                    }
-                }
-            }
-        },
-        "dto.NodeDTO": {
+        "graphdto.FeaturesResponse": {
             "type": "object",
             "properties": {
                 "active_days": {
@@ -408,9 +550,6 @@ const docTemplate = `{
                 "betweenness": {
                     "type": "number"
                 },
-                "cluster": {
-                    "type": "integer"
-                },
                 "component_id": {
                     "type": "integer"
                 },
@@ -420,18 +559,11 @@ const docTemplate = `{
                 "depth": {
                     "type": "integer"
                 },
-                "evidence": {
-                    "type": "string"
-                },
                 "fast_forward_share": {
-                    "description": "доля out, ушедшая ≤2 дней после in",
                     "type": "number"
                 },
                 "hub": {
                     "type": "number"
-                },
-                "id": {
-                    "type": "string"
                 },
                 "in_cycle": {
                     "type": "boolean"
@@ -473,14 +605,94 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "pass_through": {
-                    "description": "out_kzt / in_kzt; NaN → -1 (нет входящих)",
-                    "type": "number"
-                },
-                "priority": {
                     "type": "number"
                 },
                 "reciprocal": {
                     "type": "boolean"
+                },
+                "repeat_routes": {
+                    "type": "integer"
+                },
+                "truncated": {
+                    "type": "boolean"
+                },
+                "verified_sink": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "graphdto.NeighborResponse": {
+            "type": "object",
+            "properties": {
+                "gid": {
+                    "type": "string"
+                },
+                "n_tx": {
+                    "type": "integer"
+                },
+                "sum_kzt": {
+                    "type": "number"
+                }
+            }
+        },
+        "graphdto.NodeCardResponse": {
+            "type": "object",
+            "properties": {
+                "incoming": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/graphdto.NeighborResponse"
+                    }
+                },
+                "node": {
+                    "$ref": "#/definitions/graphdto.NodeDetailResponse"
+                },
+                "outgoing": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/graphdto.NeighborResponse"
+                    }
+                }
+            }
+        },
+        "graphdto.NodeDetailResponse": {
+            "type": "object",
+            "properties": {
+                "cluster": {
+                    "type": "integer"
+                },
+                "component": {
+                    "type": "integer"
+                },
+                "depth": {
+                    "type": "integer"
+                },
+                "evidence": {
+                    "type": "string"
+                },
+                "features": {
+                    "$ref": "#/definitions/graphdto.FeaturesResponse"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "in_deg": {
+                    "type": "integer"
+                },
+                "in_kzt": {
+                    "type": "number"
+                },
+                "is_seed": {
+                    "type": "boolean"
+                },
+                "out_deg": {
+                    "type": "integer"
+                },
+                "out_kzt": {
+                    "type": "number"
+                },
+                "priority": {
+                    "type": "number"
                 },
                 "role": {
                     "type": "string"
@@ -489,16 +701,75 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "truncated": {
-                    "description": "depth==4 \u0026\u0026 out_deg==0: обрезан обходом",
-                    "type": "boolean"
-                },
-                "verified_sink": {
-                    "description": "depth\u003c4 \u0026\u0026 out_deg==0 \u0026\u0026 in_deg\u003e0",
                     "type": "boolean"
                 }
             }
         },
-        "dto.TopDTO": {
+        "graphdto.NodeResponse": {
+            "type": "object",
+            "properties": {
+                "cluster": {
+                    "type": "integer"
+                },
+                "component": {
+                    "type": "integer"
+                },
+                "depth": {
+                    "type": "integer"
+                },
+                "evidence": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "in_deg": {
+                    "type": "integer"
+                },
+                "in_kzt": {
+                    "type": "number"
+                },
+                "is_seed": {
+                    "type": "boolean"
+                },
+                "out_deg": {
+                    "type": "integer"
+                },
+                "out_kzt": {
+                    "type": "number"
+                },
+                "priority": {
+                    "type": "number"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "role_score": {
+                    "type": "number"
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "graphdto.SubgraphResponse": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/graphdto.EdgeResponse"
+                    }
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/graphdto.NodeResponse"
+                    }
+                }
+            }
+        },
+        "graphdto.TopNodeResponse": {
             "type": "object",
             "properties": {
                 "gid": {
