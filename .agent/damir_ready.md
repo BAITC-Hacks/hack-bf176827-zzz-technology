@@ -109,3 +109,12 @@
 - Уведомление Артёму ещё не выполнено.
 - Запрет на изменения internal/analysis, internal/data/parquet,
   internal/graph и cmd/pipeline соблюдён.
+
+## Исправление сборки в WSL
+
+- Устранена причина ошибки `C:\Windows\install.js`: в WSL вызывался Windows npm.
+- В окружение Дамира установлен официальный Linux Node.js 24.21.0 в ~/.local;
+  контрольная сумма архива сверена с nodejs.org.
+- В Makefile добавлена проверка Node/npm до установки зависимостей.
+- Инструкция для текущего терминала — frontend/README.md, «Node.js в WSL».
+- Повторный npm ci + production build с Linux Node.js прошёл успешно.

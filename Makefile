@@ -32,6 +32,8 @@ swag: ## обновить Swagger, сохранив остальные файл�
 	$(SWAG) fmt -d cmd/web,internal/transport/http
 
 frontend: ## запустить React dev-сервер (:5173; API на :8080)
+	@sh frontend/scripts/check-env.sh
 	cd frontend && npm run dev
 frontend-build: ## установить зависимости и собрать React
+	@sh frontend/scripts/check-env.sh
 	cd frontend && npm ci && npm run build

@@ -41,3 +41,30 @@ npm run dev
 Компоненты: `App` — состояние и API, `GraphCanvas` — граф,
 `NodeCard` — карточка, `Assistant` — опциональный LLM-интерфейс.
 `graph.js` содержит операции с графом для резервного источника данных.
+
+## Node.js в WSL
+
+Для проекта в `/home/...` запускайте **Linux Node.js и npm внутри WSL**.
+Windows npm из `/mnt/c/Program Files/nodejs/` вызывает CMD на UNC-пути
+`\\wsl.localhost\Ubuntu\...`, что приводит к ошибке `C:\Windows\install.js`.
+
+Проверка в терминале Ubuntu:
+
+```sh
+command -v node
+command -v npm
+node -p 'process.platform'  # должно быть linux
+```
+
+Если Node установлен в `~/.local/bin`, включите его в текущем терминале:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+hash -r
+cd ~/hackator
+make frontend-build
+```
+
+`npm ci` самостоятельно пересоздаёт `node_modules` для текущей платформы;
+не переносите этот каталог между Windows и Linux. `make frontend-build`
+проверяет среду до установки и сообщает об ошибочном Windows npm.
