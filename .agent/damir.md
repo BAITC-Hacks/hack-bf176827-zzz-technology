@@ -14,12 +14,12 @@
 схеме и показать связи. Всё должно работать локально, одной командой, без интернета.
 
 Стек: Go 1.25, Fiber v2, Uber FX, zap, Viper, swag. Postgres из каркаса удаляется (делает Артём в
-`master`). Аналитику (роли, кластеры, приоритеты) считает Артём в пакете `internal/analysis`.
+`main`). Аналитику (роли, кластеры, приоритеты) считает Артём в пакете `internal/analysis`.
 Моя часть: HTTP API, веб-интерфейс, инфраструктура запуска, валидатор выгрузок, README-разделы.
 
 ## Правила
 
-- Ветка `feat/web`. Коммитить часто. Мержу в `master` первым, Артём ребейзится на меня.
+- Ветка `feat/web`. Коммитить часто. Мержу в `main` первым, Артём ребейзится на меня.
 - Мои файлы: `internal/services/graph/**`, `internal/data/dto/**`, `internal/transport/http/v1/graph/**`,
   `internal/app/*.go`, `cmd/web/**`, `cmd/check/**`, `web/**`, `Makefile`, `Dockerfile`,
   `docker-compose.yaml`, `docs/` (swagger), README-разделы «Запуск», «Структура», «Что на выходе», «API», «Интерфейс».
@@ -94,9 +94,9 @@ func Load(dir string) (Dataset, error)                        // internal/data/p
 
 Приёмка: страница открывается файлом и рисует мок со стрелками; `go build ./...` зелёный.
 
-## D1. После коммита `foundation` в `master` (~40 мин)
+## D1. После коммита `foundation` в `main` (~40 мин)
 
-1. `git rebase master`. Убедиться, что `go run ./cmd/pipeline --data data --out out` работает и `out/graph.json` есть.
+1. `git rebase main`. Убедиться, что `go run ./cmd/pipeline --data data --out out` работает и `out/graph.json` есть.
 2. `internal/services/graph/service.go`: интерфейс `Service` и реализация. На старте (fx `OnStart`) —
    `parquet.Load(cfg.App.DataDir)` → `analysis.Run` → хранить `*analysis.Result` в памяти (мьютекс не нужен,
    только чтение). Индексы: `out map[gid][]edge`, `in map[gid][]edge`. Методы:
@@ -139,7 +139,7 @@ func Load(dir string) (Dataset, error)                        // internal/data/p
 6. Панель «Топ приоритетов»: таблица из `/v1/top` (rank, gid, role, priority, why), клик — фокус на узле.
    Фильтры по роли и кластеру перерисовывают граф.
 7. Репетиция сценария жюри: назвать gid из top → найти → показать связи, за 10 секунд.
-8. Коммит, **мерж `feat/web` → `master`** (`git checkout master && git merge feat/web`), сказать Артёму.
+8. Коммит, **мерж `feat/web` → `main`** (`git checkout main && git merge feat/web`), сказать Артёму.
 
 Приёмка: сценарий жюри проходит; страница работает без интернета (отключить сеть и перезагрузить).
 
@@ -182,7 +182,7 @@ func Load(dir string) (Dataset, error)                        // internal/data/p
 |---|---|
 | 0:25 | UI-скелет на моке, `cmd/check`, Makefile — в `feat/web` |
 | 1:05 | API + раздача UI на реальном `graph.json` |
-| 2:00 | UI полный, `feat/web` смержен в `master`, сценарий жюри проходит |
+| 2:00 | UI полный, `feat/web` смержен в `main`, сценарий жюри проходит |
 | 2:30 | Docker, README-разделы, прогон с чистого клона |
 | 3:00 | LLM-кнопки в UI, схема-слайд |
 | 4:30 | Freeze |

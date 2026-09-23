@@ -10,7 +10,7 @@
 
 ---
 
-## A0. Фундамент в `master` (0:00–0:25)
+## A0. Фундамент в `main` (0:00–0:25)
 
 1. `git add -A && git commit -m "skeleton"`.
 2. Выпилить Postgres и items: `internal/app/db.go`, `internal/repo/`, `internal/services/items/`,
@@ -27,7 +27,7 @@
    `analysis.go` — `Run()` с заглушкой (все `peripheral`, cluster = компонента, priority = in_kzt норм.).
 7. `internal/analysis/export.go`: три CSV + `graph.json` (gid строкой).
 8. `cmd/pipeline/main.go`, `data/*.parquet` в репо. Прогон: 2248 строк, 3 файла.
-9. Коммит `foundation`, пуш `master`, сказать Дамиру. `git checkout -b feat/analysis`.
+9. Коммит `foundation`, пуш `main`, сказать Дамиру. `git checkout -b feat/analysis`.
 
 ## A1. Метрики (0:25–0:55) — `internal/analysis/metrics.go`
 
@@ -50,7 +50,7 @@ seed ≠ transit, truncated consolidator ×0.7. Evidence — русские ша
 ## A4. Приоритет и топ (1:55–2:15) — `priority.go`
 
 Перцентили, веса из plan.md, seed ×0.5, truncated ×0.7, `why`, top 30.
-`make pipeline && make check` зелёный. Коммит. Ребейз на `master` после мержа Дамира, мерж `feat/analysis`.
+`make pipeline && make check` зелёный. Коммит. Ребейз на `main` после мержа Дамира, мерж `feat/analysis`.
 **Контрольная точка 2:15: must-have 1, 2, 4 закрыты.**
 
 ## A5. LLM-слой на OpenAI (2:15–3:15) — `internal/llm/`, `internal/services/assistant/`

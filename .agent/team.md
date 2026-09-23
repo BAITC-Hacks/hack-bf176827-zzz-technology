@@ -4,9 +4,9 @@
 
 ## Принципы
 
-- Ветки: `master` (фундамент), `feat/analysis` (Артём), `feat/web` (Дамир). Каждый коммитит в свою ветку.
+- Ветки: `main` (фундамент), `feat/analysis` (Артём), `feat/web` (Дамир). Каждый коммитит в свою ветку.
 - Файлы не пересекаются. Артём: `internal/analysis/**`, `internal/data/parquet/**`, `internal/graph/**`, `cmd/pipeline/**`, `README.md` (разделы «критерии», «ограничения», «масштабирование»). Дамир: `internal/services/graph/**`, `internal/data/dto/**`, `internal/transport/http/v1/graph/**`, `internal/app/*.go`, `cmd/web/**`, `cmd/check/**`, `web/**`, `Makefile`, `Dockerfile`, `docker-compose.yaml`, `docs/` (swagger), `README.md` (разделы «запуск», «структура», «выходы»).
-- Мерж: сначала `feat/web` → `master`, потом Артём делает `git rebase master` и мержит `feat/analysis`. Конфликт возможен только в README — разделы разные, решается руками.
+- Мерж: сначала `feat/web` → `main`, потом Артём делает `git rebase main` и мержит `feat/analysis`. Конфликт возможен только в README — разделы разные, решается руками.
 - Контракт между ветками фиксируется в шаге A0 и не меняется без обсуждения: структуры `analysis.Result`, `analysis.NodeResult`, `analysis.ClusterResult` и формат `out/graph.json`.
 
 ## Контракт (фиксируется в A0)
@@ -56,7 +56,7 @@ func Run(ds parquet.Dataset, opts Options) (*Result, error)
 
 ## Артём (тяжёлая часть: фундамент + аналитика)
 
-### A0. Фундамент в `master` (первые 25 минут, Дамир в это время делает D0)
+### A0. Фундамент в `main` (первые 25 минут, Дамир в это время делает D0)
 
 1. `git add -A && git commit -m "skeleton"` — закоммитить каркас как есть.
 2. Выпилить Postgres: удалить `internal/app/db.go`, `internal/repo/`, `internal/services/items/`, `internal/data/dto/items.go`, `internal/transport/http/v1/items/`, `migrations/`, `sqlc.yaml`; из `internal/app/internal.go` убрать репозитории и items; из `internal/app/handlers.go` убрать items; из `cmd/web/main.go` убрать `ModuleDB`, `ModuleRepositories`; из `internal/config` убрать `PostgresConfig`; из `config/*.yaml` секцию postgres. `go build ./...` зелёный.
@@ -66,7 +66,7 @@ func Run(ds parquet.Dataset, opts Options) (*Result, error)
 6. `internal/analysis/result.go` — контракт выше. `internal/analysis/analysis.go` — `Run()` с заглушкой: все роли `peripheral`, `role_score 0`, `cluster_id` = номер компоненты, `priority` = нормированный in_kzt, `evidence` = "заглушка", top = 30 по priority.
 7. `internal/analysis/export.go`: `WriteCSV(res, dir)` (три файла, схема ТЗ + доп. колонки с фичами) и `WriteGraphJSON(res, dir)` (формат выше, gid строкой).
 8. `cmd/pipeline/main.go`: флаги `--data data --out out`, лог таймингов. Положить `data/*.parquet` в репо.
-9. Прогнать, убедиться: 2248 строк, три файла, graph.json. Коммит `foundation`, пуш `master`. **Сообщить Дамиру** — он ребейзит `feat/web` на это.
+9. Прогнать, убедиться: 2248 строк, три файла, graph.json. Коммит `foundation`, пуш `main`. **Сообщить Дамиру** — он ребейзит `feat/web` на это.
 10. `git checkout -b feat/analysis`.
 
 ### A1. Метрики (`internal/analysis/metrics.go`, ~30 мин)
@@ -111,7 +111,7 @@ func Run(ds parquet.Dataset, opts Options) (*Result, error)
 
 ## Дамир (типовая часть: API + UI + инфраструктура + проверка)
 
-### D0. Пока Артём делает фундамент (первые 25 минут, ветка `feat/web` от текущего `master`)
+### D0. Пока Артём делает фундамент (первые 25 минут, ветка `feat/web` от текущего `main`)
 
 1. `git checkout -b feat/web`.
 2. Скачать cytoscape.js (`cytoscape.min.js`, последний 3.x) в `web/vendor/`. Не CDN — интернета на площадке может не быть.
@@ -119,9 +119,9 @@ func Run(ds parquet.Dataset, opts Options) (*Result, error)
 4. `cmd/check/main.go`: читает `out/*.csv`, проверяет: `nodes_roles.csv` ровно 2248 строк и уникальные gid; role из словаря; `role_score`, `priority_score` ∈ [0,1]; `evidence` непустой и ≤200; `cluster_id` у всех и каждый есть в `clusters.csv`; `top_nodes.csv` ≥ 20 строк, `rank` 1..N, `priority_score` невозрастающий. Ненулевой exit-код при ошибке, понятные сообщения.
 5. Makefile: убрать goose/sqlc/db-цели; добавить `pipeline` (`go run ./cmd/pipeline --data data --out out`), `check`, `web` (`go run ./cmd/web`), `demo` (`pipeline` + `check` + `web`).
 
-### D1. После коммита `foundation` в master (~40 мин)
+### D1. После коммита `foundation` в main (~40 мин)
 
-1. `git rebase master`.
+1. `git rebase main`.
 2. `internal/services/graph/service.go`: на старте (fx `OnStart`) вызывает `parquet.Load` + `analysis.Run` (путь к данным из config `app.data_dir`, дефолт `data`), держит `*analysis.Result` в памяти. Методы: `Graph(filter)`, `Node(gid)`, `Ego(gid, depth)`, `Top(n)`, `Clusters()`, `Search(prefix)`.
 3. `internal/data/dto/graph.go`: `NodeDTO` (gid `string`!), `EdgeDTO`, `ClusterDTO`, `TopDTO`, `NodeCardDTO` (роль, скоры, evidence, все фичи, входящие и исходящие соседи с суммами). Маппинг из `analysis.*`.
 4. `internal/transport/http/v1/graph/handler.go` по образцу удалённого `items`: `GET /graph?role=&cluster=&component=`, `GET /nodes/{gid}`, `GET /nodes/{gid}/ego?depth=1`, `GET /top?n=30`, `GET /clusters`, `GET /search?q=`. gid парсить `strconv.ParseInt`, 404 через `httperr.NotFound`. Swagger-аннотации, `@Router` без `/v1`. Регистрация в `router.go` и `internal/app/handlers.go`, сервис в `internal/app/internal.go`. `make swag`.
@@ -135,7 +135,7 @@ func Run(ds parquet.Dataset, opts Options) (*Result, error)
 3. Стартовый вид: топ-30 узлов + их соседи 1 шага (layout `cose`), кнопка «вся сеть» (крупнейшая компонента).
 4. Поиск по gid: центрирование, подсветка входящих (один цвет) и исходящих (другой), остальное приглушить. Карточка справа: роль, role_score, priority, cluster, evidence, метрики, списки соседей с суммами (клик по соседу — переход). Кнопка «ego 2 шага» → `/nodes/{gid}/ego?depth=2`.
 5. Панель «Топ приоритетов»: таблица из `/v1/top`, клик — фокус на узле. Фильтры по роли и кластеру.
-6. Проверка сценария жюри: назвать gid из top → найти на схеме → показать связи. Коммит, **мерж `feat/web` → `master`**, сказать Артёму.
+6. Проверка сценария жюри: назвать gid из top → найти на схеме → показать связи. Коммит, **мерж `feat/web` → `main`**, сказать Артёму.
 
 ### D3. Инфраструктура и воспроизводимость (~30 мин)
 
@@ -154,9 +154,9 @@ func Run(ds parquet.Dataset, opts Options) (*Result, error)
 
 | Время | Что должно быть |
 |---|---|
-| 0:25 | `master`: foundation, pipeline пишет 3 CSV с заглушками. `feat/web`: UI-скелет на моке, `cmd/check`, Makefile. |
+| 0:25 | `main`: foundation, pipeline пишет 3 CSV с заглушками. `feat/web`: UI-скелет на моке, `cmd/check`, Makefile. |
 | 1:30 | `feat/analysis`: реальные роли, кластеры, приоритет, `make check` зелёный. `feat/web`: API + UI на реальном graph.json. |
-| 2:00 | Оба смержены в `master`. `make demo` работает end-to-end. Must-have 1, 2, 4, 5 закрыты. |
+| 2:00 | Оба смержены в `main`. `make demo` работает end-to-end. Must-have 1, 2, 4, 5 закрыты. |
 | 3:00 | README полный (must-have 3), прогон с чистой машины, Docker. |
 | 4:00 | Паттерны, устойчивость, полировка UI, `docs/demo.md` с 3 разобранными gid. |
 | 4:30 | Freeze. Только правки README и репетиция демо. |
