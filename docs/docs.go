@@ -463,6 +463,14 @@ const docTemplate = `{
                 "question": {
                     "type": "string",
                     "maxLength": 2000
+                },
+                "route": {
+                    "description": "путь просмотра аналитика, только контекст",
+                    "type": "array",
+                    "maxItems": 40,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

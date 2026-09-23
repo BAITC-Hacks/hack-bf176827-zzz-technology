@@ -8,7 +8,7 @@ const MODE_HINT = {
   all: 'Вся сеть: все 2 248 узлов, в фокусе крупнейшая компонента. Seed показаны всегда.',
 };
 
-export default function Toolbar({source, sourceKind, query, onQuery, onSearch, suggestions, searchError, filters, onFilters, clusters, ready, hidePeripheral, onHidePeripheral}) {
+export default function Toolbar({source, sourceKind, query, onQuery, onSearch, suggestions, searchError, filters, onFilters, clusters, ready, hidePeripheral}) {
   return <header className="topbar">
     <div className="topbar__head">
       <div><p className="apx-eyebrow">Исследование транзакционной сети</p><h1 className="apx-h2">Граф денег</h1></div>
@@ -30,8 +30,6 @@ export default function Toolbar({source, sourceKind, query, onQuery, onSearch, s
         <button type="button" className={`apx-btn apx-btn--sm ${filters.topOnly ? 'apx-btn--secondary' : 'apx-btn--ghost'}`} aria-pressed={filters.topOnly} onClick={() => onFilters({...filters, topOnly: true})} disabled={!ready}>Топ-30</button>
         <button type="button" className={`apx-btn apx-btn--sm ${!filters.topOnly ? 'apx-btn--secondary' : 'apx-btn--ghost'}`} aria-pressed={!filters.topOnly} onClick={() => onFilters({...filters, topOnly: false})} disabled={!ready}>Вся сеть</button>
       </div>
-      <button type="button" className={`apx-btn apx-btn--sm ${hidePeripheral ? 'apx-btn--secondary' : 'apx-btn--ghost'}`} aria-pressed={hidePeripheral} onClick={() => onHidePeripheral(!hidePeripheral)} disabled={!ready}
-        title="Периферия: узлы без признаков роли, 84% сети. Seed, выбранный узел и его контрагенты остаются видны.">Исключить периферию</button>
     </form>
     <p className="apx-hint mode-hint">{MODE_HINT[filters.topOnly ? 'top' : 'all']}{hidePeripheral ? ' Периферия исключена, кроме связей выбранного узла.' : ''}</p>
     {searchError && <p className="apx-hint search-error" role="alert">{searchError}</p>}

@@ -47,9 +47,13 @@ export default function NodeTab({card, route, llm, hidePeripheral, onSelect, onE
       <h3 className="section-title">{title} <span className="count">{entries.length}</span></h3>
       {!entries.length && <p className="apx-hint">Нет переводов</p>}
       {main.map(neighborRow)}
-      {periphery.length > 0 && (hidePeripheral
-        ? <p className="apx-hint periphery-note">Периферия исключена: {periphery.length} {plural(periphery.length, 'перевод', 'перевода', 'переводов')} на {fmtKzt(peripherySum)}</p>
-        : <details className="periphery"><summary className="periphery__summary"><span>Периферия <span className="count">{periphery.length}</span></span><span className="neighbor__meta">{fmtKzt(peripherySum)}</span></summary>{periphery.map(neighborRow)}</details>)}
+      {periphery.length > 0 && <details className="periphery">
+        <summary className="periphery__summary">
+          <span>{hidePeripheral ? 'Периферия исключена' : 'Периферия'} <span className="count">{periphery.length}</span></span>
+          <span className="neighbor__meta">{fmtKzt(peripherySum)}</span>
+        </summary>
+        {periphery.map(neighborRow)}
+      </details>}
     </div>;
   };
 

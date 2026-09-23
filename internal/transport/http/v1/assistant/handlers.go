@@ -53,7 +53,13 @@ func (h *handler) Ask(ctx *fiber.Ctx) error {
 		}
 		contextGID = parsed
 	}
-	answer, err := h.assistant.Ask(ctx.UserContext(), req.Question, contextGID)
+	route := make([]int64, 0, len(req.Route))
+	for _, raw := range req.Route {
+		if gid, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			route = append(route, gid)
+		}
+	}
+	answer, err := h.assistant.Ask(ctx.UserContext(), req.Question, contextGID, route)
 	if err != nil {
 		switch {
 		case errors.Is(err, assistantservice.ErrLLMDisabled):

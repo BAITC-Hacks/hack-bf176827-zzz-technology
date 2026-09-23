@@ -20,6 +20,10 @@ export default function App() {
   const [tab, setTab] = useState('node'), [ready, setReady] = useState(false), [hidePeripheral, setHidePeripheral] = useState(false);
   const {route, push: pushRoute, clear: clearRoute} = useRoute();
   const fallback = useRef(null), version = useRef(0), topRef = useRef([]), activeFilters = useRef(filters), restored = useRef(false);
+  const pendingSelection = useRef(null); // выбор, который надо сохранить при смене фильтра на кластер узла
+  const [toast, setToast] = useState(null), toastTimer = useRef(null);
+  // toast: {text, action?: {label, run}}; с действием держится дольше
+  const notify = useCallback((text, action) => { setToast({text, action}); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), action ? 6000 : 2500); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,8 +55,10 @@ export default function App() {
     activeFilters.current = filters; const current = ++version.current; setBusy(true); setError('');
     async function load() {
       try {
-        const graph = fallback.current ? filterGraph(fallback.current, filters, topRef.current) : normalize(await request('/v1/graph?' + new URLSearchParams({role: filters.role, cluster: filters.cluster, top: filters.topOnly ? '30' : '0'})));
+        let graph = fallback.current ? filterGraph(fallback.current, filters, topRef.current) : normalize(await request('/v1/graph?' + new URLSearchParams({role: filters.role, cluster: filters.cluster, top: filters.topOnly ? '30' : '0'})));
         if (current !== version.current) return;
+        const pending = pendingSelection.current; pendingSelection.current = null;
+        if (pending) { graph = mergeGraph(graph, pending.ego); setView({graph, append: false, all: !filters.topOnly}); return; }
         setSelected(''); setHighlighted([]); setCard(null); setView({graph, append: false, all: !filters.topOnly});
       } catch (e) { if (current === version.current) { setError(e.message); setBusy(false); } }
     }
@@ -77,10 +83,19 @@ export default function App() {
     try {
       const [nextCard, graph] = await Promise.all([fallback.current ? offlineCard(fallback.current, id) : request(`/v1/nodes/${encodeURIComponent(id)}`), getEgo(id, depth)]);
       if (current !== version.current) return;
-      setView(previous => ({graph: mergeGraph(previous?.graph || {nodes: [], edges: []}, graph), append: true, all: false}));
       setCard(nextCard); setQuery(id); setSelected(id); setHighlighted([]); setTab('node'); pushRoute(id);
+      const cluster = String(nextCard.node.cluster), active = activeFilters.current.cluster;
+      const goToCluster = () => { pendingSelection.current = {id, ego: graph}; setFilters(f => ({...f, cluster, topOnly: false})); notify(`Выбран кластер ${cluster}`); };
+      if (active === '') {
+        // фильтра нет: кластер узла становится фильтром, режим «Вся сеть», выбор сохраняется
+        goToCluster();
+      } else {
+        setView(previous => ({graph: mergeGraph(previous?.graph || {nodes: [], edges: []}, graph), append: true, all: false}));
+        // фильтр задан, узел из другого кластера: вид не меняем, предлагаем перейти
+        if (cluster !== active) notify(`Узел из кластера ${cluster}, показан с окружением`, {label: `Перейти в кластер ${cluster}`, run: goToCluster});
+      }
     } catch (e) { if (current === version.current) { setError(e.message); setBusy(false); } }
-  }, [getEgo, pushRoute]);
+  }, [getEgo, pushRoute, notify]);
 
   // восстановить последний узел маршрута после загрузки
   useEffect(() => { if (ready && !restored.current) { restored.current = true; if (route.length) select(route[route.length - 1]); } }, [ready, route, select]);
@@ -112,12 +127,15 @@ export default function App() {
   return <div className="app">
     <Toolbar source={SOURCES[sourceKind] || 'Загрузка данных'} sourceKind={sourceKind} query={query} onQuery={v => { setQuery(v); setSearchError(''); }} onSearch={search}
       suggestions={suggestions} searchError={searchError || error} filters={filters} onFilters={setFilters} clusters={clusters} ready={ready}
-      hidePeripheral={hidePeripheral} onHidePeripheral={setHidePeripheral} />
+      hidePeripheral={hidePeripheral} />
     <main className="body">
       <div className="canvas-col">
         <SelectedStrip card={card} status={status} />
         <div className="canvas-wrap">
           <GraphCanvas view={view} selected={selected} highlighted={highlighted} route={route} candidates={card?.next_candidates || []} hidePeripheral={hidePeripheral} onSelect={select} onBusy={setBusy} />
+          <label className="canvas-toggle" title="Периферия: узлы без признаков роли, 84% сети. Seed, выбранный узел и маршрут остаются видны.">
+            <input type="checkbox" checked={hidePeripheral} onChange={e => { setHidePeripheral(e.target.checked); notify(e.target.checked ? 'Периферия исключена' : 'Периферия показана'); }} disabled={!ready} /><span className="switch" aria-hidden="true" /><span>Исключить периферию</span>
+          </label>
           <div className="canvas-legend"><span><i className="line line--brand" />Входящие</span><span><i className="line line--ink" />Исходящие</span><span><i className="line line--route" />Маршрут</span><span><i className="line line--cand" />Следующий кандидат</span></div>
           <RouteBar route={route} selected={selected} edges={view?.graph.edges || []} rolesById={rolesById} onSelect={select} onBack={back} onClear={clear} />
           {busy && <div className="overlay" role="status"><span className="apx-progress overlay__progress"><span className="apx-progress__bar" /></span><span className="apx-sm">Загружаем и раскладываем сеть…</span></div>}
@@ -125,7 +143,9 @@ export default function App() {
         </div>
       </div>
       <SidePanel tab={tab} onTab={setTab} card={card} route={route} llm={llm} selected={selected} seeds={seeds} top={top} clusters={clusters} robustness={robustness} ready={ready} hidePeripheral={hidePeripheral}
-        onSelect={select} onEgo={id => select(id, 2)} onCluster={id => setFilters({role: '', cluster: String(id), topOnly: false})} onDisableLLM={() => setLLM(false)} onHighlight={highlight} />
+        onSelect={select} onEgo={id => select(id, 2)} onCluster={id => { setFilters({role: '', cluster: String(id), topOnly: false}); notify(`Выбран кластер ${id}`); }} onDisableLLM={() => setLLM(false)} onHighlight={highlight} />
     </main>
+    {toast && <div className="toast-host"><div className="apx-toast" role="status"><span className="apx-toast__text">{toast.text}</span>
+      {toast.action && <button className="toast__action" onClick={() => { toast.action.run(); setToast(null); }}>{toast.action.label}</button>}</div></div>}
   </div>;
 }

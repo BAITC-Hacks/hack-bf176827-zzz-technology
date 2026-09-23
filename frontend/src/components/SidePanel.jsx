@@ -72,6 +72,6 @@ export default function SidePanel({tab, onTab, card, route, llm, selected, seeds
       </section>
     </>}
 
-    {llm && ready && <Assistant selected={selected} onDisable={onDisableLLM} onHighlight={onHighlight} onSelect={onSelect} />}
+    {llm && ready && <Assistant selected={selected} route={route} onDisable={onDisableLLM} onHighlight={onHighlight} onSelect={onSelect} />}
   </aside>;
 }
