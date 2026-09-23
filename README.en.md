@@ -33,6 +33,13 @@ For the React UI you also need Node.js 22+ and npm: `make demo-full`.
 
 The pipeline finishes in **under a second**; no internet and no LLM key are needed to reproduce the results.
 
+> [!IMPORTANT]
+> **An OpenAI key unlocks the AI features.** Roles, priorities, clusters and the UI work without it.
+> To ask the assistant new questions and get fresh node summaries, put the key into `.env` in the repository
+> root **before starting**: `cp .env.example .env`, then `OPENAI_API_KEY=sk-...`. Docker and `make` pick it up
+> automatically. Without a key the assistant only answers cached questions and the "Справка" button shows a template.
+> Details: [Optional AI layer](#optional-ai-layer).
+
 ## Compliance with the brief
 
 | Requirement | Where to verify |

@@ -1,4 +1,5 @@
 // Package httperr — единый формат ошибок API: {"errors":[{"status","msg","field"}]}.
+// Хендлеры возвращают httperr.NotFound/BadRequest/New, ошибки validator превращаются в 422 с именем поля.
 package httperr
 
 import (

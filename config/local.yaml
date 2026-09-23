@@ -1,2 +1,3 @@
+# Локальный запуск (APP_ENVIRONMENT=local, дефолт). Данные и выгрузки — data/ и out/ из base.yaml.
 app:
   log_level: info # debug → ещё и события FX (provide/invoke); можно APP_LOG_LEVEL=debug
