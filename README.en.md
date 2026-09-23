@@ -123,6 +123,16 @@ For each role a 0–1 score is computed by a thresholded rule; the node's role i
 (bonus: consolidator and coordinator 1.0, distributor 0.7, transit 0.5, terminal 0.4). Seeds ×0.5 — they are already known,
 the target is who sits above them; nodes cut off by the crawl ×0.7 — incomplete data.
 
+**Where the rules come from.** All of this is our own design: the organisers' starter code computed only degrees,
+sums, PageRank and `pass_through`, while the brief supplied the role dictionary and the requirement of "a formal rule
+with a threshold". Thresholds were chosen from quantiles of the data: ≥ 3 payers and ≥ 5 recipients are the top 5 % of
+nodes, the 0.7–1.3 transit window covers the 72 nodes with pass-through 0.8–1.2, the betweenness threshold is P97.
+Priority uses percentile ranks rather than raw values so that a single 23M transfer cannot dominate the other factors.
+The weights follow the analyst's order of questions: where the money converges matters more than who mediates.
+Robustness was checked: for every ±0.05 shift of the six weights (729 combinations) at least 7 of the top-10 nodes
+stay (8.7 on average) and at least 26 of the top-30. It is a heuristic without training: there is no ground truth,
+so quality is judged by the explainability of every decision.
+
 **Evidence** is a phrase of up to 200 characters from a role template, e.g.:
 `консолидация: получает от 8 плательщиков (из них seed: 2) 2.2 млн KZT, отдаёт дальше 24% (2 получ.); в возвратном цикле`
 (consolidation: receives from 8 payers, 2 of them seeds, 2.2M KZT, passes on 24% to 2 recipients; part of a return cycle).
@@ -178,6 +188,19 @@ make pipeline   # out/*.csv, graph.json
 make check      # 2248 nodes, roles from the dictionary, scores in [0,1], evidence ≤ 200, clusters, top ≥ 20
 make test       # Go: analysis determinism, role constraints, graph filters, HTTP contracts, assistant tools
 ```
+
+### Performance
+
+Measured on the supplied dataset (2,248 nodes, 3,119 edges, 4,840 transfers), compiled binary, 5 consecutive runs:
+
+| Metric | Result | Brief requirement |
+|---|---|---|
+| Full recomputation from parquet to three CSV files and `graph.json` | **0.29–0.33 s** | < 5 minutes |
+| Peak memory (RSS) | ~60 MB | an ordinary laptop |
+| Determinism | 5 runs produce byte-identical files | reproducibility |
+
+Reproduce: `go build -o bin/pipeline ./cmd/pipeline && /usr/bin/time -v bin/pipeline --data data --out out`.
+Go compilation and the React image build in Docker are not included in the measurement.
 
 ## Data and results
 
