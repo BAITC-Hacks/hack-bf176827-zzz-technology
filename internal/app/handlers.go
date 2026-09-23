@@ -2,6 +2,7 @@ package app
 
 import (
 	v1 "hackaton/internal/transport/http/v1"
+	graphv1 "hackaton/internal/transport/http/v1/graph"
 	healthv1 "hackaton/internal/transport/http/v1/health"
 
 	_ "hackaton/docs"
@@ -18,9 +19,11 @@ func ModuleV1Handlers() fx.Option {
 		}),
 		fx.Provide(
 			fx.Annotate(healthv1.NewHandler, fx.As(new(healthv1.Handler))),
+			graphv1.NewHandler,
 		),
 		fx.Invoke(
 			v1.RegisterV1Health,
+			v1.RegisterV1Graph,
 		),
 	)
 }

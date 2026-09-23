@@ -1,14 +1,47 @@
 basePath: /v1
 definitions:
-  dto.CreateItemRequest:
+  dto.ClusterDTO:
     properties:
-      title:
-        example: Первый элемент
-        maxLength: 200
-        minLength: 1
+      component:
+        type: integer
+      hypothesis:
         type: string
-    required:
-    - title
+      id:
+        type: integer
+      n_nodes:
+        type: integer
+      n_seed:
+        type: integer
+      sum_kzt_internal:
+        type: number
+      top_gids:
+        items:
+          type: string
+        type: array
+    type: object
+  dto.EdgeDTO:
+    properties:
+      depth:
+        type: integer
+      n_tx:
+        type: integer
+      source:
+        type: string
+      sum_kzt:
+        type: number
+      target:
+        type: string
+    type: object
+  dto.GraphResponse:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/dto.EdgeDTO'
+        type: array
+      nodes:
+        items:
+          $ref: '#/definitions/dto.NodeDTO'
+        type: array
     type: object
   dto.HealthResponse:
     properties:
@@ -16,21 +49,113 @@ definitions:
         example: ok
         type: string
     type: object
-  dto.Item:
+  dto.NeighborDTO:
     properties:
-      created_at:
+      gid:
         type: string
+      n_tx:
+        type: integer
+      sum_kzt:
+        type: number
+    type: object
+  dto.NodeCardDTO:
+    properties:
+      incoming:
+        items:
+          $ref: '#/definitions/dto.NeighborDTO'
+        type: array
+      node:
+        $ref: '#/definitions/dto.NodeDTO'
+      outgoing:
+        items:
+          $ref: '#/definitions/dto.NeighborDTO'
+        type: array
+    type: object
+  dto.NodeDTO:
+    properties:
+      active_days:
+        type: integer
+      authority:
+        type: number
+      avg_in_tx:
+        type: number
+      avg_out_tx:
+        type: number
+      betweenness:
+        type: number
+      cluster:
+        type: integer
+      component_id:
+        type: integer
+      component_size:
+        type: integer
+      depth:
+        type: integer
+      evidence:
+        type: string
+      fast_forward_share:
+        description: доля out, ушедшая ≤2 дней после in
+        type: number
+      hub:
+        type: number
       id:
         type: string
-      title:
+      in_cycle:
+        type: boolean
+      in_deg:
+        type: integer
+      in_kzt:
+        type: number
+      in_tx:
+        type: integer
+      is_seed:
+        type: boolean
+      max_same_day_payers:
+        type: integer
+      n_clusters_in:
+        type: integer
+      n_seed_payers:
+        type: integer
+      n_seed_upstream:
+        type: integer
+      out_deg:
+        type: integer
+      out_kzt:
+        type: number
+      out_tx:
+        type: integer
+      pagerank:
+        type: number
+      pass_through:
+        description: out_kzt / in_kzt; NaN → -1 (нет входящих)
+        type: number
+      priority:
+        type: number
+      reciprocal:
+        type: boolean
+      role:
         type: string
+      role_score:
+        type: number
+      truncated:
+        description: 'depth==4 && out_deg==0: обрезан обходом'
+        type: boolean
+      verified_sink:
+        description: depth<4 && out_deg==0 && in_deg>0
+        type: boolean
     type: object
-  dto.ListResponse-dto_Item:
+  dto.TopDTO:
     properties:
-      items:
-        items:
-          $ref: '#/definitions/dto.Item'
-        type: array
+      gid:
+        type: string
+      priority:
+        type: number
+      rank:
+        type: integer
+      role:
+        type: string
+      why:
+        type: string
     type: object
   httperr.Error:
     properties:
@@ -55,10 +180,57 @@ definitions:
     type: object
 info:
   contact: {}
-  description: REST API хакатон-проекта.
-  title: Hackaton API
+  description: Роли, кластеры и приоритеты узлов транзакционной сети (HackAlem AI).
+  title: Граф денег — API
   version: "0.1"
 paths:
+  /clusters:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ClusterDTO'
+            type: array
+      summary: Кластеры сети
+      tags:
+      - graph
+  /graph:
+    get:
+      parameters:
+      - description: Роль
+        in: query
+        name: role
+        type: string
+      - description: Кластер
+        in: query
+        name: cluster
+        type: integer
+      - description: Компонента
+        in: query
+        name: component
+        type: integer
+      - description: Топ N и соседи (0 — все)
+        in: query
+        name: top
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GraphResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Граф переводов
+      tags:
+      - graph
   /health:
     get:
       operationId: health
@@ -69,86 +241,15 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.HealthResponse'
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/httperr.Response'
-      summary: Проверка живости (API + БД)
+      summary: Проверка живости
       tags:
       - system
-  /items:
+  /nodes/{gid}:
     get:
-      operationId: list-items
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.ListResponse-dto_Item'
-      summary: Список элементов
-      tags:
-      - items
-    post:
-      consumes:
-      - application/json
-      operationId: create-item
       parameters:
-      - description: Данные элемента
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dto.CreateItemRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/dto.Item'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httperr.Response'
-        "422":
-          description: Unprocessable Entity
-          schema:
-            $ref: '#/definitions/httperr.Response'
-      summary: Создать элемент
-      tags:
-      - items
-  /items/{id}:
-    delete:
-      operationId: delete-item
-      parameters:
-      - description: ID элемента
-        format: uuid
+      - description: gid (int64 строкой)
         in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httperr.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httperr.Response'
-      summary: Удалить элемент
-      tags:
-      - items
-    get:
-      operationId: get-item
-      parameters:
-      - description: ID элемента
-        format: uuid
-        in: path
-        name: id
+        name: gid
         required: true
         type: string
       produces:
@@ -157,7 +258,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.Item'
+            $ref: '#/definitions/dto.NodeCardDTO'
         "400":
           description: Bad Request
           schema:
@@ -166,7 +267,93 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/httperr.Response'
-      summary: Элемент по id
+      summary: Карточка узла и соседи
       tags:
-      - items
+      - graph
+  /nodes/{gid}/ego:
+    get:
+      parameters:
+      - description: gid
+        in: path
+        name: gid
+        required: true
+        type: string
+      - default: 1
+        description: Глубина
+        enum:
+        - 1
+        - 2
+        in: query
+        name: depth
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GraphResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Окружение в один или два шага
+      tags:
+      - graph
+  /search:
+    get:
+      parameters:
+      - description: Префикс gid
+        in: query
+        name: q
+        type: string
+      - default: 10
+        description: Лимит
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.NodeDTO'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Поиск по префиксу gid
+      tags:
+      - graph
+  /top:
+    get:
+      parameters:
+      - default: 30
+        description: Число узлов
+        in: query
+        name: "n"
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.TopDTO'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Топ приоритетов
+      tags:
+      - graph
 swagger: "2.0"

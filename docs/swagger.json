@@ -1,13 +1,86 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "REST API хакатон-проекта.",
-        "title": "Hackaton API",
+        "description": "Роли, кластеры и приоритеты узлов транзакционной сети (HackAlem AI).",
+        "title": "Граф денег — API",
         "contact": {},
         "version": "0.1"
     },
     "basePath": "/v1",
     "paths": {
+        "/clusters": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "graph"
+                ],
+                "summary": "Кластеры сети",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.ClusterDTO"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/graph": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "graph"
+                ],
+                "summary": "Граф переводов",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Роль",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Кластер",
+                        "name": "cluster",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Компонента",
+                        "name": "component",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Топ N и соседи (0 — все)",
+                        "name": "top",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GraphResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "produces": [
@@ -16,7 +89,7 @@
                 "tags": [
                     "system"
                 ],
-                "summary": "Проверка живости (API + БД)",
+                "summary": "Проверка живости",
                 "operationId": "health",
                 "responses": {
                     "200": {
@@ -24,96 +97,24 @@
                         "schema": {
                             "$ref": "#/definitions/dto.HealthResponse"
                         }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/httperr.Response"
-                        }
                     }
                 }
             }
         },
-        "/items": {
+        "/nodes/{gid}": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "items"
+                    "graph"
                 ],
-                "summary": "Список элементов",
-                "operationId": "list-items",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ListResponse-dto_Item"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "items"
-                ],
-                "summary": "Создать элемент",
-                "operationId": "create-item",
-                "parameters": [
-                    {
-                        "description": "Данные элемента",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.CreateItemRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Item"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httperr.Response"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity",
-                        "schema": {
-                            "$ref": "#/definitions/httperr.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/items/{id}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "items"
-                ],
-                "summary": "Элемент по id",
-                "operationId": "get-item",
+                "summary": "Карточка узла и соседи",
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "uuid",
-                        "description": "ID элемента",
-                        "name": "id",
+                        "description": "gid (int64 строкой)",
+                        "name": "gid",
                         "in": "path",
                         "required": true
                     }
@@ -122,7 +123,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.Item"
+                            "$ref": "#/definitions/dto.NodeCardDTO"
                         }
                     },
                     "400": {
@@ -138,26 +139,43 @@
                         }
                     }
                 }
-            },
-            "delete": {
-                "tags": [
-                    "items"
+            }
+        },
+        "/nodes/{gid}/ego": {
+            "get": {
+                "produces": [
+                    "application/json"
                 ],
-                "summary": "Удалить элемент",
-                "operationId": "delete-item",
+                "tags": [
+                    "graph"
+                ],
+                "summary": "Окружение в один или два шага",
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "uuid",
-                        "description": "ID элемента",
-                        "name": "id",
+                        "description": "gid",
+                        "name": "gid",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "enum": [
+                            1,
+                            2
+                        ],
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Глубина",
+                        "name": "depth",
+                        "in": "query"
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GraphResponse"
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -167,6 +185,86 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/search": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "graph"
+                ],
+                "summary": "Поиск по префиксу gid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Префикс gid",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Лимит",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.NodeDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httperr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/top": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "graph"
+                ],
+                "summary": "Топ приоритетов",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 30,
+                        "description": "Число узлов",
+                        "name": "n",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.TopDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/httperr.Response"
                         }
@@ -176,17 +274,69 @@
         }
     },
     "definitions": {
-        "dto.CreateItemRequest": {
+        "dto.ClusterDTO": {
             "type": "object",
-            "required": [
-                "title"
-            ],
             "properties": {
-                "title": {
-                    "type": "string",
-                    "maxLength": 200,
-                    "minLength": 1,
-                    "example": "Первый элемент"
+                "component": {
+                    "type": "integer"
+                },
+                "hypothesis": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "n_nodes": {
+                    "type": "integer"
+                },
+                "n_seed": {
+                    "type": "integer"
+                },
+                "sum_kzt_internal": {
+                    "type": "number"
+                },
+                "top_gids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.EdgeDTO": {
+            "type": "object",
+            "properties": {
+                "depth": {
+                    "type": "integer"
+                },
+                "n_tx": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "sum_kzt": {
+                    "type": "number"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.GraphResponse": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EdgeDTO"
+                    }
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.NodeDTO"
+                    }
                 }
             }
         },
@@ -199,28 +349,165 @@
                 }
             }
         },
-        "dto.Item": {
+        "dto.NeighborDTO": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "gid": {
                     "type": "string"
+                },
+                "n_tx": {
+                    "type": "integer"
+                },
+                "sum_kzt": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.NodeCardDTO": {
+            "type": "object",
+            "properties": {
+                "incoming": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.NeighborDTO"
+                    }
+                },
+                "node": {
+                    "$ref": "#/definitions/dto.NodeDTO"
+                },
+                "outgoing": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.NeighborDTO"
+                    }
+                }
+            }
+        },
+        "dto.NodeDTO": {
+            "type": "object",
+            "properties": {
+                "active_days": {
+                    "type": "integer"
+                },
+                "authority": {
+                    "type": "number"
+                },
+                "avg_in_tx": {
+                    "type": "number"
+                },
+                "avg_out_tx": {
+                    "type": "number"
+                },
+                "betweenness": {
+                    "type": "number"
+                },
+                "cluster": {
+                    "type": "integer"
+                },
+                "component_id": {
+                    "type": "integer"
+                },
+                "component_size": {
+                    "type": "integer"
+                },
+                "depth": {
+                    "type": "integer"
+                },
+                "evidence": {
+                    "type": "string"
+                },
+                "fast_forward_share": {
+                    "description": "доля out, ушедшая ≤2 дней после in",
+                    "type": "number"
+                },
+                "hub": {
+                    "type": "number"
                 },
                 "id": {
                     "type": "string"
                 },
-                "title": {
+                "in_cycle": {
+                    "type": "boolean"
+                },
+                "in_deg": {
+                    "type": "integer"
+                },
+                "in_kzt": {
+                    "type": "number"
+                },
+                "in_tx": {
+                    "type": "integer"
+                },
+                "is_seed": {
+                    "type": "boolean"
+                },
+                "max_same_day_payers": {
+                    "type": "integer"
+                },
+                "n_clusters_in": {
+                    "type": "integer"
+                },
+                "n_seed_payers": {
+                    "type": "integer"
+                },
+                "n_seed_upstream": {
+                    "type": "integer"
+                },
+                "out_deg": {
+                    "type": "integer"
+                },
+                "out_kzt": {
+                    "type": "number"
+                },
+                "out_tx": {
+                    "type": "integer"
+                },
+                "pagerank": {
+                    "type": "number"
+                },
+                "pass_through": {
+                    "description": "out_kzt / in_kzt; NaN → -1 (нет входящих)",
+                    "type": "number"
+                },
+                "priority": {
+                    "type": "number"
+                },
+                "reciprocal": {
+                    "type": "boolean"
+                },
+                "role": {
                     "type": "string"
+                },
+                "role_score": {
+                    "type": "number"
+                },
+                "truncated": {
+                    "description": "depth==4 \u0026\u0026 out_deg==0: обрезан обходом",
+                    "type": "boolean"
+                },
+                "verified_sink": {
+                    "description": "depth\u003c4 \u0026\u0026 out_deg==0 \u0026\u0026 in_deg\u003e0",
+                    "type": "boolean"
                 }
             }
         },
-        "dto.ListResponse-dto_Item": {
+        "dto.TopDTO": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.Item"
-                    }
+                "gid": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "number"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "why": {
+                    "type": "string"
                 }
             }
         },

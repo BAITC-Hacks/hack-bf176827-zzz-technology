@@ -3,7 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"hackaton/web"
 	"net"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -72,5 +77,18 @@ func ModuleRunWebServer() fx.Option {
 				return app.ShutdownWithContext(ctx)
 			},
 		})
+	})
+}
+
+// ModuleStatic регистрируется после API и Swagger.
+func ModuleStatic() fx.Option {
+	return fx.Invoke(func(app *fiber.App, cfg *config.Config) {
+		app.Get("/graph.json", func(c *fiber.Ctx) error { return c.SendFile(filepath.Join(cfg.App.OutDir, "graph.json")) })
+		// make demo собирает React в frontend/dist; встроенный D0 остаётся резервным просмотрщиком.
+		if _, err := os.Stat("frontend/dist/index.html"); err == nil {
+			app.Static("/", "frontend/dist")
+		} else {
+			app.Use("/", filesystem.New(filesystem.Config{Root: http.FS(web.Files), Index: "index.html"}))
+		}
 	})
 }
