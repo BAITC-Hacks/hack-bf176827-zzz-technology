@@ -49,6 +49,7 @@ type Features struct {
 	FastForwardShare float64 `json:"fast_forward_share"` // доля out, ушедшая ≤2 дней после in
 	Reciprocal       bool    `json:"reciprocal"`
 	InCycle          bool    `json:"in_cycle"`
+	RepeatRoutes     int     `json:"repeat_routes"` // устойчивых маршрутов A→B→C через узел
 }
 
 type NodeResult struct {
@@ -70,6 +71,7 @@ type ClusterResult struct {
 	SumKZTIn       float64
 	SumKZTOut      float64
 	RoleCounts     map[string]int
+	NCycles        int
 	TopGids        []int64
 	Hypothesis     string
 }
@@ -83,11 +85,14 @@ type TopNode struct {
 }
 
 type Result struct {
-	Nodes    []NodeResult
-	Clusters []ClusterResult
-	Top      []TopNode
-	Edges    []parquet.Edge
-	ByGid    map[int64]*NodeResult
+	Nodes      []NodeResult
+	Clusters   []ClusterResult
+	Top        []TopNode
+	Edges      []parquet.Edge
+	ByGid      map[int64]*NodeResult
+	Cycles     []Cycle
+	Routes     []Route
+	Robustness []RobustnessStep
 }
 
 type Options struct {

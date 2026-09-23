@@ -22,7 +22,7 @@ func WriteCSV(res *Result, dir string) error {
 	if err := writeCSV(filepath.Join(dir, "nodes_roles.csv"),
 		[]string{"gid", "role", "role_score", "cluster_id", "priority_score", "evidence",
 			"in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx", "pass_through", "pagerank", "betweenness",
-			"n_seed_payers", "n_seed_upstream", "component_id", "depth", "is_seed", "truncated", "verified_sink"},
+			"n_seed_payers", "n_seed_upstream", "component_id", "depth", "is_seed", "truncated", "verified_sink", "in_cycle", "repeat_routes", "fast_forward_share", "active_days"},
 		len(res.Nodes), func(i int) []string {
 			n := res.Nodes[i]
 			f := n.Features
@@ -30,13 +30,14 @@ func WriteCSV(res *Result, dir string) error {
 				strconv.Itoa(f.InDeg), strconv.Itoa(f.OutDeg), f0(f.InKZT), f0(f.OutKZT), strconv.Itoa(f.InTx), strconv.Itoa(f.OutTx),
 				f2(f.PassThrough), strconv.FormatFloat(f.PageRank, 'g', 6, 64), strconv.FormatFloat(f.Betweenness, 'g', 6, 64),
 				strconv.Itoa(f.NSeedPayers), strconv.Itoa(f.NSeedUpstream), strconv.Itoa(f.ComponentID), strconv.Itoa(f.Depth),
-				strconv.FormatBool(f.IsSeed), strconv.FormatBool(f.Truncated), strconv.FormatBool(f.VerifiedSink)}
+				strconv.FormatBool(f.IsSeed), strconv.FormatBool(f.Truncated), strconv.FormatBool(f.VerifiedSink),
+				strconv.FormatBool(f.InCycle), strconv.Itoa(f.RepeatRoutes), f2(f.FastForwardShare), strconv.Itoa(f.ActiveDays)}
 		}); err != nil {
 		return err
 	}
 	if err := writeCSV(filepath.Join(dir, "clusters.csv"),
 		[]string{"cluster_id", "n_nodes", "n_seed", "sum_kzt_internal", "top_gids", "hypothesis",
-			"component_id", "sum_kzt_in", "sum_kzt_out", "n_consolidator", "n_transit", "n_distributor", "n_terminal", "n_coordinator", "n_peripheral"},
+			"component_id", "sum_kzt_in", "sum_kzt_out", "n_cycles", "n_consolidator", "n_transit", "n_distributor", "n_terminal", "n_coordinator", "n_peripheral"},
 		len(res.Clusters), func(i int) []string {
 			c := res.Clusters[i]
 			gids := make([]string, len(c.TopGids))
@@ -44,7 +45,7 @@ func WriteCSV(res *Result, dir string) error {
 				gids[j] = gidStr(g)
 			}
 			return []string{strconv.Itoa(c.ClusterID), strconv.Itoa(c.NNodes), strconv.Itoa(c.NSeed), f0(c.SumKZTInternal),
-				strings.Join(gids, ";"), c.Hypothesis, strconv.Itoa(c.ComponentID), f0(c.SumKZTIn), f0(c.SumKZTOut),
+				strings.Join(gids, ";"), c.Hypothesis, strconv.Itoa(c.ComponentID), f0(c.SumKZTIn), f0(c.SumKZTOut), strconv.Itoa(c.NCycles),
 				strconv.Itoa(c.RoleCounts[RoleConsolidator]), strconv.Itoa(c.RoleCounts[RoleTransit]), strconv.Itoa(c.RoleCounts[RoleDistributor]),
 				strconv.Itoa(c.RoleCounts[RoleTerminal]), strconv.Itoa(c.RoleCounts[RoleCoordinator]), strconv.Itoa(c.RoleCounts[RolePeripheral])}
 		}); err != nil {
@@ -82,10 +83,11 @@ func writeCSV(path string, header []string, n int, row func(i int) []string) err
 
 // JSON для UI: gid строкой (≈1e17 не влезает в JS Number).
 type GraphJSON struct {
-	Nodes    []NodeJSON    `json:"nodes"`
-	Edges    []EdgeJSON    `json:"edges"`
-	Clusters []ClusterJSON `json:"clusters"`
-	Top      []TopJSON     `json:"top"`
+	Nodes      []NodeJSON       `json:"nodes"`
+	Edges      []EdgeJSON       `json:"edges"`
+	Clusters   []ClusterJSON    `json:"clusters"`
+	Top        []TopJSON        `json:"top"`
+	Robustness []RobustnessStep `json:"robustness"`
 }
 
 type NodeJSON struct {
@@ -136,6 +138,7 @@ func ToGraphJSON(res *Result) GraphJSON {
 		Clusters: make([]ClusterJSON, 0, len(res.Clusters)),
 		Top:      make([]TopJSON, 0, len(res.Top)),
 	}
+	out.Robustness = res.Robustness
 	for _, n := range res.Nodes {
 		f := n.Features
 		out.Nodes = append(out.Nodes, NodeJSON{ID: gidStr(n.Gid), Role: n.Role, RoleScore: n.RoleScore, Cluster: n.ClusterID,

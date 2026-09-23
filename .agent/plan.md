@@ -120,7 +120,7 @@ approximate betweenness по сэмплу, Leiden вместо Louvain, инкр
 ветка `feat/web`). Пошаговые задачи каждого, контракт между ветками (`analysis.Result`, `graph.json`),
 порядок мержа и контрольные точки по времени — в `.agent/team.md`.
 
-Кратко: A0 фундамент в `master` (25 мин, Дамир параллельно делает UI-скелет на моке, `cmd/check`, Makefile) →
+Кратко: A0 фундамент в `main` (25 мин, Дамир параллельно делает UI-скелет на моке, `cmd/check`, Makefile) →
 параллельно A1–A4 (метрики, кластеры, роли, приоритет) и D1–D2 (сервис, DTO, хендлеры, UI) → мерж `feat/web`
 первым, `feat/analysis` ребейзом → к 2:00 must-have закрыты → A5 паттерны + D3 Docker/README/чистая машина →
 A6 README-критерии и `docs/demo.md` → freeze в 4:30.

@@ -28,8 +28,10 @@ func Run(ds parquet.Dataset, opts Options) (*Result, error) {
 	}
 
 	assignClusters(g, res)
+	findPatterns(g, res)
 	assignRoles(g, res)
 	assignPriority(g, res, opts.TopN)
+	res.Robustness = robustnessSteps(res)
 	describeClusters(g, res)
 	return res, nil
 }
