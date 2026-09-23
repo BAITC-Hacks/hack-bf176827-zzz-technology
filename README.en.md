@@ -261,6 +261,10 @@ Result on the data: 88 clusters (8 with several seeds), a top-30 without a singl
 
 ## Optional AI layer
 
+![AI assistant answering a question about the selected node, with referenced nodes highlighted on the graph](docs/assistent.jpg)
+
+*The assistant answers a question about money flows using graph data; nodes referenced in the answer are highlighted on the graph.*
+
 The only external integration is the **OpenAI Responses API**, default model `gpt-5.1`.
 The key is set via the `OPENAI_API_KEY` environment variable or a `.env` file in the repository root
 (template: `.env.example`, created by `make env`). For Docker the same `.env` next to `docker-compose.yaml`
