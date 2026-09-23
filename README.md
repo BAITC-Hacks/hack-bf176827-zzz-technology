@@ -122,3 +122,8 @@ flowchart LR
 Текущая готовность и результаты проверок: [.agent/damir_ready.md](.agent/damir_ready.md).
 Docker-прогон в рабочем окружении пока не выполнен: требуется включить
 WSL integration в Docker Desktop. Сборка React и запуск через Go проверены.
+
+Если терминал WSL унаследовал `GOROOT=//wsl.localhost/...` от Windows/IDE,
+команды Makefile сбрасывают эту переменную только для запуска Go: SDK
+определяется по Linux-бинарнику `go` из PATH. Для ручного `go run` выполните
+`unset GOROOT`. `make demo` проверяет доступность Go до сборки фронтенда.
