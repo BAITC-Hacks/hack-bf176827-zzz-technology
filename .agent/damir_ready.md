@@ -118,3 +118,11 @@
 - В Makefile добавлена проверка Node/npm до установки зависимостей.
 - Инструкция для текущего терминала — frontend/README.md, «Node.js в WSL».
 - Повторный npm ci + production build с Linux Node.js прошёл успешно.
+
+## Исправление GOROOT в make demo
+
+- Устранён сбой `cannot find GOROOT directory: //wsl.localhost/...`:
+  Makefile запускает Go через `env -u GOROOT go`, SDK определяется по бинарнику.
+- Добавлена проверка Go до установки и сборки фронтенда.
+- Проверено: полный make demo с GOROOT из ошибочного лога — React + API
+  стартовали за 8,1 секунды с зависимостями из кэша. Тестовый сервер остановлен.
