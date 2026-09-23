@@ -90,10 +90,10 @@ flowchart LR
     R --> A[Analysis result in memory]
     A --> API[Fiber API]
     API --> UI[React and Cytoscape]
-    E -. graph.json fallback .-> UI
+    E -.->|"graph.json fallback"| UI
     A --> S[Assistant service]
     S <--> K[JSON cache]
-    S -. with API key .-> O[OpenAI Responses API]
+    S -.->|"with API key"| O[OpenAI Responses API]
     S --> API
 ```
 
