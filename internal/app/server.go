@@ -32,7 +32,7 @@ func ModuleWebServer() fx.Option {
 			app.Use(
 				requestid.New(),
 				middleware.NewRequestLogger(log),
-				recover.New(recover.Config{EnableStackTrace: cfg.App.IsLocal()}),
+				recover.New(recover.Config{EnableStackTrace: cfg.App.Debug}),
 				cors.New(cors.Config{
 					AllowOrigins: strings.Join(cfg.App.CorsOrigins, ","),
 					AllowHeaders: strings.Join(cfg.App.CorsHeaders, ","),

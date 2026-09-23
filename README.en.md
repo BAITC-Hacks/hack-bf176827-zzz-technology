@@ -311,13 +311,13 @@ and never attribute properties to clients that are not in the data.
 
 ## Settings
 
-Non-secret settings live in `config/base.yaml`; any key can be overridden with an environment variable.
+Non-secret settings live in `config/config.yaml`; any key can be overridden with an environment variable.
 
 | Variable | Default |
 |---|---|
 | `APP_PORT` | `8080` |
 | `APP_DATA_DIR` / `APP_OUT_DIR` | `data` / `out` |
-| `APP_ENVIRONMENT` | `local`; `prod` in Docker |
+| `APP_DEBUG` | `false`; `true` — coloured dev logs and panic stack traces |
 | `OPENAI_API_KEY` | empty — LLM disabled |
 | `LLM_MODEL` / `LLM_BASE_URL` | `gpt-5.1` / `https://api.openai.com/v1` |
 

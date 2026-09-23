@@ -1,9 +1,9 @@
-# Несекретные настройки. Overlay: config/<APP_ENVIRONMENT>.yaml.
-# Любой ключ переопределяется env-переменной: app.port → APP_PORT, app.data_dir → APP_DATA_DIR.
+# Несекретные настройки. Любой ключ переопределяется env-переменной: app.port → APP_PORT, app.debug → APP_DEBUG.
 # Секреты (OPENAI_API_KEY) — только из env / .env.
 app:
   name: money-graph
   port: 8080
+  debug: false # true → цветные dev-логи и стектрейсы паник в ответе; APP_DEBUG=true
   log_level: info
   data_dir: data
   out_dir: out

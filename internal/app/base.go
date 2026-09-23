@@ -34,7 +34,7 @@ func ModuleBase() fx.Option {
 
 func newLogger(lc fx.Lifecycle, cfg *config.Config) (*zap.Logger, error) {
 	zc := zap.NewProductionConfig()
-	if cfg.App.IsLocal() {
+	if cfg.App.Debug {
 		zc = zap.NewDevelopmentConfig()
 		zc.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
@@ -50,7 +50,6 @@ func newLogger(lc fx.Lifecycle, cfg *config.Config) (*zap.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	log = log.With(zap.String("env", cfg.App.Environment))
 
 	lc.Append(fx.Hook{OnStop: func(context.Context) error {
 		_ = log.Sync() // на stderr/tty Sync всегда возвращает ошибку — игнорируем

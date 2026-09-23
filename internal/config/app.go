@@ -8,9 +8,5 @@ type AppConfig struct {
 	CorsHeaders []string `mapstructure:"cors_headers"`
 	DataDir     string   `mapstructure:"data_dir"` // папка с parquet
 	OutDir      string   `mapstructure:"out_dir"`  // выгрузки и кэш LLM
-	Environment string   `mapstructure:"-"`        // из APP_ENVIRONMENT
-}
-
-func (c AppConfig) IsLocal() bool {
-	return c.Environment == "local" || c.Environment == "dev"
+	Debug       bool     `mapstructure:"debug"`    // dev-логи и стектрейсы паник; APP_DEBUG=true
 }

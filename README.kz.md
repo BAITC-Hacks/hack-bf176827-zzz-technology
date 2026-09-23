@@ -311,13 +311,13 @@ LLM рөлдер туралы ештеңе шешпейді: промпт тек
 
 ## Баптаулар
 
-Құпия емес баптаулар — `config/base.yaml`, кез келген кілт орта айнымалысымен қайта анықталады.
+Құпия емес баптаулар — `config/config.yaml`, кез келген кілт орта айнымалысымен қайта анықталады.
 
 | Айнымалы | Әдепкі |
 |---|---|
 | `APP_PORT` | `8080` |
 | `APP_DATA_DIR` / `APP_OUT_DIR` | `data` / `out` |
-| `APP_ENVIRONMENT` | `local`; Docker-де `prod` |
+| `APP_DEBUG` | `false`; `true` — түрлі-түсті dev-логтар және паника стектрейстері |
 | `OPENAI_API_KEY` | бос — LLM өшірулі |
 | `LLM_MODEL` / `LLM_BASE_URL` | `gpt-5.1` / `https://api.openai.com/v1` |
 

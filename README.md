@@ -310,13 +310,13 @@ LLM ничего не решает про роли: промпт требует 
 
 ## Настройки
 
-Несекретное — `config/base.yaml`, любой ключ переопределяется переменной окружения.
+Несекретное — `config/config.yaml`, любой ключ переопределяется переменной окружения.
 
 | Переменная | По умолчанию |
 |---|---|
 | `APP_PORT` | `8080` |
 | `APP_DATA_DIR` / `APP_OUT_DIR` | `data` / `out` |
-| `APP_ENVIRONMENT` | `local`; в Docker `prod` |
+| `APP_DEBUG` | `false`; `true` — цветные dev-логи и стектрейсы паник |
 | `OPENAI_API_KEY` | пусто — LLM выключен |
 | `LLM_MODEL` / `LLM_BASE_URL` | `gpt-5.1` / `https://api.openai.com/v1` |
 

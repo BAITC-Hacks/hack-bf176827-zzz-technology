@@ -27,7 +27,6 @@ COPY config ./config
 COPY data ./data
 COPY out/llm_cache.json ./out/llm_cache.json
 COPY cmd/web/entrypoint.sh /app/entrypoint.sh
-ENV APP_ENVIRONMENT=prod
 EXPOSE 8080
 HEALTHCHECK --interval=5s --timeout=3s --start-period=20s --retries=12 \
   CMD wget -q --spider http://127.0.0.1:8080/v1/health || exit 1
