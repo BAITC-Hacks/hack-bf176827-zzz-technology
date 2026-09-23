@@ -20,6 +20,7 @@ func main() {
 		app.ModuleWebServer(),
 		app.ModuleV1Handlers(),
 		app.ModuleSwagger(),
+		app.ModuleStatic(),
 		app.ModuleRunWebServer(),
 	).Run()
 }

@@ -1,83 +1,45 @@
-LOCALDB   := postgres://hack:hack@localhost:5442/hackaton?sslmode=disable
-GOOSE_IMG := kukymbr/goose-docker:3.24.3
-SQLC_IMG  := sqlc/sqlc:1.30.0
-SWAG      := go run github.com/swaggo/swag/cmd/swag@v1.16.5
-DOCKER_U  := --user $(shell id -u):$(shell id -g)
-
+SWAG := go run github.com/swaggo/swag/cmd/swag@v1.16.5
 .DEFAULT_GOAL := help
-.PHONY: help env run build test fmt vet up down logs db-run db-reset db-psql \
-        goose-create goose-migrate goose-status goose-down goose-reset sql swag gen
-
+.PHONY: help env run build test fmt vet swag pipeline check web demo demo-full docker docker-down frontend frontend-build
 help: ## список команд
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
-
-# ── приложение ─────────────────────────────────────────────
-env: ## создать .env из .env.example, если его нет
-	@test -f .env || (cp .env.example .env && echo "created .env")
-
-run: env ## запустить API локально (:8080, нужна БД: make db-run)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+env: ## создать .env, если его нет
+	@test -f .env || cp .env.example .env
+run: web ## запустить веб-сервер
+web: ## запустить веб-сервер
 	go run ./cmd/web
-
-build: ## собрать бинарь в bin/api
-	CGO_ENABLED=0 go build -trimpath -o bin/api ./cmd/web
-
-test: ## go test
+pipeline: ## рассчитать аналитику и выгрузить CSV
+	go run ./cmd/pipeline --data data --out out
+check: ## проверить выгрузки
+	go run ./cmd/check --out out
+demo: ## pipeline → check → web (Go, без Node; React отдаётся, если собран в frontend/dist, иначе встроенный просмотрщик)
+	$(MAKE) pipeline
+	$(MAKE) check
+	$(MAKE) web
+demo-full: frontend-build demo ## то же, но сначала собрать React (нужны Node.js 22+ и npm)
+docker: ## собрать и запустить всё в Docker: http://localhost:8080
+	docker compose up --build
+docker-down: ## остановить контейнер
+	docker compose down
+build: ## собрать pipeline, check и web
+	go build -o bin/pipeline ./cmd/pipeline
+	go build -o bin/web ./cmd/web
+	go build -o bin/check ./cmd/check
+test: ## запустить тесты
 	go test ./...
-
-fmt: ## gofmt + go vet
-	gofmt -l -w .
+fmt: ## форматирование и статическая проверка
+	gofmt -w cmd internal pkg web
 	go vet ./...
-
-# ── docker compose ─────────────────────────────────────────
-up: ## поднять БД + API в docker (для фронтендеров)
-	docker compose --profile app up -d --build
-
-down: ## остановить всё
-	docker compose --profile app down
-
-logs: ## логи API в docker
-	docker compose logs -f api
-
-db-run: ## поднять только Postgres (:5442)
-	docker compose up -d postgres
-
-db-reset: ## снести данные БД и поднять заново
-	docker compose down -v postgres
-	docker compose up -d postgres
-
-db-psql: ## psql в БД
-	docker compose exec postgres psql -U hack hackaton
-
-# ── миграции (goose) ───────────────────────────────────────
-# Миграции также применяются автоматически при старте API (postgres.auto_migrate).
-goose-create: ## новая миграция (спросит имя)
-	@read -p "Enter migration name: " name; \
-	docker run --rm $(DOCKER_U) -v $(PWD)/migrations/postgres:/migrations \
-		-e GOOSE_COMMAND="create" -e GOOSE_COMMAND_ARG="$$name sql" $(GOOSE_IMG)
-
-goose-migrate: ## goose up
-	docker run --rm $(DOCKER_U) -v $(PWD)/migrations/postgres:/migrations --network host \
-		-e GOOSE_DRIVER=postgres -e GOOSE_DBSTRING=$(LOCALDB) -e GOOSE_COMMAND="up" $(GOOSE_IMG)
-
-goose-status: ## goose status
-	docker run --rm $(DOCKER_U) -v $(PWD)/migrations/postgres:/migrations --network host \
-		-e GOOSE_DRIVER=postgres -e GOOSE_DBSTRING=$(LOCALDB) -e GOOSE_COMMAND="status" $(GOOSE_IMG)
-
-goose-down: ## откатить последнюю миграцию
-	docker run --rm $(DOCKER_U) -v $(PWD)/migrations/postgres:/migrations --network host \
-		-e GOOSE_DRIVER=postgres -e GOOSE_DBSTRING=$(LOCALDB) -e GOOSE_COMMAND="down" $(GOOSE_IMG)
-
-goose-reset: ## откатить все миграции
-	docker run --rm $(DOCKER_U) -v $(PWD)/migrations/postgres:/migrations --network host \
-		-e GOOSE_DRIVER=postgres -e GOOSE_DBSTRING=$(LOCALDB) -e GOOSE_COMMAND="reset" $(GOOSE_IMG)
-
-# ── кодоген ────────────────────────────────────────────────
-sql: ## sqlc generate → internal/repo/db
-	docker run --rm $(DOCKER_U) -v $(PWD):/src -w /src $(SQLC_IMG) generate
-
-swag: ## swagger → docs/ (только сгенерированные файлы; docs/*.md не трогаем)
+vet: ## статическая проверка
+	go vet ./...
+swag: ## обновить Swagger (только сгенерированные файлы; docs/*.md, png, svg не трогаем)
 	rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
 	$(SWAG) init -g main.go -d cmd/web,internal/transport/http,internal/data/dto,pkg/httperr -o docs
 	$(SWAG) fmt -d cmd/web,internal/transport/http
 
-gen: sql swag ## sqlc + swagger
+frontend: ## запустить React dev-сервер (:5173; API на :8080)
+	@sh frontend/scripts/check-env.sh
+	cd frontend && npm run dev
+frontend-build: ## установить зависимости и собрать React
+	@sh frontend/scripts/check-env.sh
+	cd frontend && npm ci && npm run build

@@ -10,6 +10,7 @@ import (
 	"hackaton/internal/services/analysis"
 	"hackaton/internal/services/assistant"
 	"hackaton/internal/services/export"
+	"hackaton/internal/services/graph"
 	"hackaton/internal/services/hypotheses"
 	"hackaton/internal/services/pipeline"
 	"hackaton/pkg/llm"
@@ -32,6 +33,7 @@ func ModuleServices() fx.Option {
 		fx.Annotate(export.NewService, fx.As(new(export.Service))),
 		fx.Annotate(hypotheses.NewService, fx.As(new(hypotheses.Service))),
 		fx.Annotate(pipeline.NewService, fx.As(new(pipeline.Service))),
+		fx.Annotate(graph.NewService, fx.As(new(graph.Service))),
 		fx.Annotate(assistant.NewService, fx.As(new(assistant.Service))),
 		newAnalysisResult,
 	)
