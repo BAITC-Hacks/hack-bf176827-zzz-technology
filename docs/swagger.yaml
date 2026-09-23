@@ -1,0 +1,172 @@
+basePath: /v1
+definitions:
+  dto.CreateItemRequest:
+    properties:
+      title:
+        example: Первый элемент
+        maxLength: 200
+        minLength: 1
+        type: string
+    required:
+    - title
+    type: object
+  dto.HealthResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  dto.Item:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.ListResponse-dto_Item:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.Item'
+        type: array
+    type: object
+  httperr.Error:
+    properties:
+      field:
+        description: поле запроса, если ошибка про него
+        type: string
+      msg:
+        description: человекочитаемое сообщение
+        example: Не найдено
+        type: string
+      status:
+        description: машинный код для фронта
+        example: not_found
+        type: string
+    type: object
+  httperr.Response:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/httperr.Error'
+        type: array
+    type: object
+info:
+  contact: {}
+  description: REST API хакатон-проекта.
+  title: Hackaton API
+  version: "0.1"
+paths:
+  /health:
+    get:
+      operationId: health
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Проверка живости (API + БД)
+      tags:
+      - system
+  /items:
+    get:
+      operationId: list-items
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ListResponse-dto_Item'
+      summary: Список элементов
+      tags:
+      - items
+    post:
+      consumes:
+      - application/json
+      operationId: create-item
+      parameters:
+      - description: Данные элемента
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.Item'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Создать элемент
+      tags:
+      - items
+  /items/{id}:
+    delete:
+      operationId: delete-item
+      parameters:
+      - description: ID элемента
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Удалить элемент
+      tags:
+      - items
+    get:
+      operationId: get-item
+      parameters:
+      - description: ID элемента
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Item'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httperr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httperr.Response'
+      summary: Элемент по id
+      tags:
+      - items
+swagger: "2.0"

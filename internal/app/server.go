@@ -1,0 +1,76 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"strings"
+	"time"
+
+	"hackaton/internal/config"
+	"hackaton/internal/transport/http/middleware"
+	"hackaton/pkg/httperr"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
+	"go.uber.org/fx"
+	"go.uber.org/zap"
+)
+
+func ModuleWebServer() fx.Option {
+	return fx.Options(
+		fx.Provide(newFiberApp),
+		// порядок важен: request id → лог → recover (паника станет 500 и попадёт в лог) → cors
+		fx.Invoke(func(app *fiber.App, cfg *config.Config, log *zap.Logger) {
+			app.Use(
+				requestid.New(),
+				middleware.NewRequestLogger(log),
+				recover.New(recover.Config{EnableStackTrace: cfg.App.IsLocal()}),
+				cors.New(cors.Config{
+					AllowOrigins: strings.Join(cfg.App.CorsOrigins, ","),
+					AllowHeaders: strings.Join(cfg.App.CorsHeaders, ","),
+				}),
+			)
+		}),
+	)
+}
+
+func newFiberApp(cfg *config.Config, log *zap.Logger) *fiber.App {
+	return fiber.New(fiber.Config{
+		AppName:               cfg.App.Name,
+		DisableStartupMessage: true, // стартуем через zap
+		ErrorHandler:          httperr.Handler(log),
+		ReadTimeout:           30 * time.Second,
+		WriteTimeout:          30 * time.Second,
+		IdleTimeout:           2 * time.Minute,
+	})
+}
+
+func ModuleRunWebServer() fx.Option {
+	return fx.Invoke(func(lc fx.Lifecycle, app *fiber.App, cfg *config.Config, log *zap.Logger) {
+		lc.Append(fx.Hook{
+			OnStart: func(context.Context) error {
+				addr := fmt.Sprintf("0.0.0.0:%d", cfg.App.Port)
+				// Listen синхронно, чтобы занятый порт ронял старт, а не терялся в горутине
+				ln, err := net.Listen("tcp", addr)
+				if err != nil {
+					return fmt.Errorf("listen %s: %w", addr, err)
+				}
+				go func() {
+					if err := app.Listener(ln); err != nil {
+						log.Error("http server stopped", zap.Error(err))
+					}
+				}()
+				log.Info("http server started",
+					zap.String("addr", addr),
+					zap.String("swagger", fmt.Sprintf("http://localhost:%d/swagger/index.html", cfg.App.Port)))
+				return nil
+			},
+			OnStop: func(ctx context.Context) error {
+				return app.ShutdownWithContext(ctx)
+			},
+		})
+	})
+}

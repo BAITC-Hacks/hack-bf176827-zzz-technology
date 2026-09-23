@@ -1,0 +1,2 @@
+app:
+  log_level: info # debug → ещё и события FX (provide/invoke); можно APP_LOG_LEVEL=debug
