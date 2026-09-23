@@ -6,17 +6,15 @@ import (
 	"go.uber.org/fx"
 )
 
-//	@title			Hackaton API
+//	@title			Граф денег — API
 //	@version		0.1
-//	@description	REST API хакатон-проекта.
+//	@description	Роли, кластеры и приоритеты узлов транзакционной сети (HackAlem AI).
 
 //	@BasePath	/v1
 
 func main() {
 	fx.New(
 		app.ModuleBase(),
-		app.ModuleDB(),
-		app.ModuleRepositories(),
 		app.ModuleServices(),
 		app.ModuleWebServer(),
 		app.ModuleV1Handlers(),

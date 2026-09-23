@@ -1,0 +1,2 @@
+cluster_id,n_nodes,n_seed,sum_kzt_internal,top_gids,hypothesis,component_id,sum_kzt_in,sum_kzt_out,n_consolidator,n_transit,n_distributor,n_terminal,n_coordinator,n_peripheral
+0,2248,81,365890012,100000004892144100;100000002224132100;100000003684369100;100000006274203100;100000008258083100,заглушка: все узлы в одном кластере,0,0,0,0,0,0,0,0,2248

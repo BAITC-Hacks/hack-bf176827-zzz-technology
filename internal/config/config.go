@@ -18,8 +18,8 @@ const (
 )
 
 type Config struct {
-	App      AppConfig      `mapstructure:"app"`
-	Postgres PostgresConfig `mapstructure:"postgres"`
+	App AppConfig `mapstructure:"app"`
+	LLM LLMConfig `mapstructure:"llm"`
 }
 
 type AppConfig struct {
@@ -28,30 +28,25 @@ type AppConfig struct {
 	LogLevel    string   `mapstructure:"log_level"`
 	CorsOrigins []string `mapstructure:"cors_origins"`
 	CorsHeaders []string `mapstructure:"cors_headers"`
-	Environment string   `mapstructure:"-"` // из APP_ENVIRONMENT
+	DataDir     string   `mapstructure:"data_dir"` // папка с parquet
+	OutDir      string   `mapstructure:"out_dir"`  // куда пайплайн пишет выгрузки
+	Environment string   `mapstructure:"-"`        // из APP_ENVIRONMENT
 }
 
 func (c AppConfig) IsLocal() bool {
 	return c.Environment == "local" || c.Environment == "dev"
 }
 
-type PostgresConfig struct {
-	Host        string `mapstructure:"host"`
-	Port        int    `mapstructure:"port"`
-	User        string `mapstructure:"user"`
-	Password    string `mapstructure:"password"` // секрет: только из env (POSTGRES_PASSWORD)
-	DB          string `mapstructure:"db"`
-	SSLMode     string `mapstructure:"ssl_mode"`
-	AutoMigrate bool   `mapstructure:"auto_migrate"`
+// LLMConfig — опциональный слой на OpenAI; ключ только из env (OPENAI_API_KEY).
+type LLMConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	Model   string `mapstructure:"model"`
+	BaseURL string `mapstructure:"base_url"`
 }
 
-func (c PostgresConfig) DSN() string {
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		c.Host, c.Port, c.User, c.Password, c.DB, c.SSLMode)
-}
+func (c LLMConfig) Enabled() bool { return c.APIKey != "" }
 
 // New читает config/base.yaml + config/<env>.yaml (если есть) и накладывает env-переменные.
-// .env в корне подхватывается автоматически, если существует.
 func New() (*Config, error) {
 	_ = godotenv.Load() // .env необязателен
 
@@ -82,7 +77,8 @@ func New() (*Config, error) {
 	// app.port → APP_PORT и т.д.; ключ должен быть известен viper'у (yaml или default)
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
-	v.SetDefault("postgres.password", "")
+	v.SetDefault("llm.api_key", "")
+	_ = v.BindEnv("llm.api_key", "OPENAI_API_KEY", "LLM_API_KEY")
 
 	cfg := &Config{}
 	if err := v.Unmarshal(cfg, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(

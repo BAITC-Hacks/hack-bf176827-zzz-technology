@@ -1,5 +1,2 @@
 app:
   log_level: info
-
-postgres:
-  port: 5432

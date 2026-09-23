@@ -1,10 +1,12 @@
 # Несекретные настройки. Overlay: config/<APP_ENVIRONMENT>.yaml.
-# Любой ключ переопределяется env-переменной: app.port → APP_PORT, postgres.host → POSTGRES_HOST.
-# Секреты (POSTGRES_PASSWORD) — только из env / .env.
+# Любой ключ переопределяется env-переменной: app.port → APP_PORT, app.data_dir → APP_DATA_DIR.
+# Секреты (OPENAI_API_KEY) — только из env / .env.
 app:
-  name: hackaton
+  name: money-graph
   port: 8080
   log_level: info
+  data_dir: data
+  out_dir: out
   cors_origins:
     - "*"
   cors_headers:
@@ -13,10 +15,6 @@ app:
     - Accept
     - Authorization
 
-postgres:
-  host: localhost
-  port: 5442
-  user: hack
-  db: hackaton
-  ssl_mode: disable
-  auto_migrate: true # goose up при старте (миграции вшиты в бинарь)
+llm:
+  model: gpt-5-codex
+  base_url: https://api.openai.com/v1
