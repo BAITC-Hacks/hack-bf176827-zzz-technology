@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,15 +35,6 @@ func New(res *analysis.Result, client *llm.Client, cache *llm.Cache) *Service {
 }
 
 func (s *Service) Enabled() bool { return s.llm.Enabled() }
-
-type Answer struct {
-	Text   string   `json:"answer"`
-	Gids   []string `json:"gids"`
-	Steps  int      `json:"steps"`
-	Cached bool     `json:"cached"`
-}
-
-var gidRe = regexp.MustCompile(`\b1\d{17}\b`)
 
 // Ask — вопрос на естественном языке → ответ по графу через инструменты. Кэшируется по тексту вопроса.
 func (s *Service) Ask(ctx context.Context, question string) (Answer, error) {

@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,27 +43,8 @@ func (c *Client) Model() string {
 	return c.cfg.Model
 }
 
-type Tool struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Parameters  map[string]any `json:"parameters"`
-}
-
 // ToolExec выполняет инструмент и возвращает результат для модели (JSON или текст).
 type ToolExec func(name, argsJSON string) (string, error)
-
-type Usage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
-}
-
-type Answer struct {
-	Text  string
-	Steps int
-	Usage Usage
-}
-
-var ErrDisabled = errors.New("llm: ключ не задан")
 
 // Complete — один запрос с ответом строго по JSON-схеме (schema=nil → свободный текст).
 func (c *Client) Complete(ctx context.Context, system, user, schemaName string, schema map[string]any) (string, error) {
@@ -138,26 +118,6 @@ func (c *Client) RunTools(ctx context.Context, system, user string, tools []Tool
 	}
 	return ans, fmt.Errorf("llm: превышен лимит шагов (%d)", maxSteps)
 }
-
-type response struct {
-	ID     string `json:"id"`
-	Output []struct {
-		Type      string `json:"type"`
-		Name      string `json:"name"`
-		CallID    string `json:"call_id"`
-		Arguments string `json:"arguments"`
-		Content   []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		} `json:"content"`
-	} `json:"output"`
-	Usage Usage `json:"usage"`
-	Error *struct {
-		Message string `json:"message"`
-	} `json:"error"`
-}
-
-type functionCall struct{ Name, CallID, Arguments string }
 
 func (r *response) text() string {
 	var sb strings.Builder
