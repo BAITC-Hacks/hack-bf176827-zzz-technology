@@ -93,10 +93,10 @@ flowchart LR
     R --> A[Жадтағы талдау нәтижесі]
     A --> API[Fiber API]
     API --> UI[React және Cytoscape]
-    E -. резервтік graph.json .-> UI
+    E -.->|"резервтік graph.json"| UI
     A --> S[Ассистент сервисі]
     S <--> K[JSON кэші]
-    S -. API кілті бар болса .-> O[OpenAI Responses API]
+    S -.->|"API кілті бар болса"| O[OpenAI Responses API]
     S --> API
 ```
 

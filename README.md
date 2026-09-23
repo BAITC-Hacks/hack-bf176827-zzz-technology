@@ -91,10 +91,10 @@ flowchart LR
     R --> A[Результат анализа в памяти]
     A --> API[Fiber API]
     API --> UI[React и Cytoscape]
-    E -. резервный graph.json .-> UI
+    E -.->|"резервный graph.json"| UI
     A --> S[Сервис ассистента]
     S <--> K[JSON-кэш]
-    S -. при наличии ключа .-> O[OpenAI Responses API]
+    S -.->|"при наличии ключа"| O[OpenAI Responses API]
     S --> API
 ```
 
