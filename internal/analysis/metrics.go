@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"math"
 	"sort"
 
 	"hackaton/internal/data/parquet"
@@ -19,7 +20,7 @@ func computeFeatures(g *graph.Graph) map[int64]Features {
 		seedSet[s] = true
 	}
 
-	pr := network.PageRank(g.G, 0.85, 1e-8)
+	pr := pageRank(g, 0.85, 1e-10, 200)
 	hits := network.HITS(g.G, 1e-8)
 	btw := network.Betweenness(g.G)
 	upstream := seedUpstream(g, 4)
@@ -54,7 +55,7 @@ func computeFeatures(g *graph.Graph) map[int64]Features {
 		}
 		f.PageRank = pr[gid]
 		f.Hub, f.Authority = hits[gid].Hub, hits[gid].Authority
-		f.Betweenness = btw[gid]
+		f.Betweenness = math.Round(btw[gid]*1e6) / 1e6
 		f.NSeedUpstream = upstream[gid]
 		f.ComponentID, f.ComponentSize = comp[gid].id, comp[gid].size
 		f.Truncated = f.Depth == 4 && f.OutDeg == 0
@@ -110,7 +111,7 @@ func components(g *graph.Graph) map[int64]compInfo {
 		if len(cc[i]) != len(cc[j]) {
 			return len(cc[i]) > len(cc[j])
 		}
-		return cc[i][0].ID() < cc[j][0].ID()
+		return minNodeID(cc[i]) < minNodeID(cc[j])
 	})
 	out := map[int64]compInfo{}
 	for id, c := range cc {
@@ -156,4 +157,62 @@ func temporal(g *graph.Graph, gid int64, f *Features) {
 	if total > 0 && len(inDates) > 0 {
 		f.FastForwardShare = fast / total
 	}
+}
+
+func minNodeID(nodes []gg.Node) int64 {
+	m := nodes[0].ID()
+	for _, n := range nodes[1:] {
+		if n.ID() < m {
+			m = n.ID()
+		}
+	}
+	return m
+}
+
+// pageRank — взвешенный по сумме PageRank, детерминированный порядок (gonum суммирует в порядке map).
+func pageRank(g *graph.Graph, damp, tol float64, maxIter int) map[int64]float64 {
+	gids := append([]int64(nil), g.Gids...)
+	sort.Slice(gids, func(i, j int) bool { return gids[i] < gids[j] })
+	n := float64(len(gids))
+	outW := make(map[int64]float64, len(gids))
+	for _, gid := range gids {
+		for _, e := range g.Out[gid] {
+			outW[gid] += e.SumKZT
+		}
+	}
+	rank := make(map[int64]float64, len(gids))
+	for _, gid := range gids {
+		rank[gid] = 1 / n
+	}
+	for iter := 0; iter < maxIter; iter++ {
+		dangling := 0.0
+		for _, gid := range gids {
+			if outW[gid] == 0 {
+				dangling += rank[gid]
+			}
+		}
+		next := make(map[int64]float64, len(gids))
+		base := (1-damp)/n + damp*dangling/n
+		for _, gid := range gids {
+			next[gid] = base
+		}
+		for _, gid := range gids {
+			if outW[gid] == 0 {
+				continue
+			}
+			share := damp * rank[gid] / outW[gid]
+			for _, e := range g.Out[gid] {
+				next[e.Dst] += share * e.SumKZT
+			}
+		}
+		diff := 0.0
+		for _, gid := range gids {
+			diff += math.Abs(next[gid] - rank[gid])
+		}
+		rank = next
+		if diff < tol {
+			break
+		}
+	}
+	return rank
 }
